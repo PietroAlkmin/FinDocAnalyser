@@ -83,10 +83,8 @@ app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
 
-app.Logger.LogInformation("==============================================");
 app.Logger.LogInformation("FinDoc Analyzer API iniciada com sucesso!");
 app.Logger.LogInformation("Swagger UI: http://localhost:5070/");
-app.Logger.LogInformation("==============================================");
 
 app.Run();
 

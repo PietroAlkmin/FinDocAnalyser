@@ -11,7 +11,7 @@ namespace FinDocAnalyzer.Core.Services;
 
 public class AnalysisOrchestrator
 {
-    private readonly IPdfExtractor _pdfExtractor;
+    private readonly IPdfExtractor _pdfExtractor; //Instanciando as interfaces
     private readonly IAiAnalyzer _aiAnalyzer;
     private readonly IResultStore _resultStore;
 
@@ -23,7 +23,7 @@ public class AnalysisOrchestrator
         _pdfExtractor = pdfExtractor;
         _aiAnalyzer = aiAnalyzer;
         _resultStore = resultStore;
-    }
+    } // Crei um construtor para receber as interfaces via injeção de dependência
 
     /// <summary>
     /// Processa um PDF e retorna o ID da análise
