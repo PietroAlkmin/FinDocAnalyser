@@ -19,9 +19,9 @@ public class FixedIncomeAsset
     public string Type { get; set; } = string.Empty;  // LCI, CDB, Debênture, etc.
     public string Issuer { get; set; } = string.Empty;
     public decimal InvestedAmount { get; set; }
-    public decimal CurrentValue { get; set; }
-    public decimal Return { get; set; }
-    public decimal ReturnPercentage { get; set; }
+    public decimal? CurrentValue { get; set; }  // ← Agora nullable
+    public decimal? Return { get; set; }
+    public decimal? ReturnPercentage { get; set; }
     public string Rate { get; set; } = string.Empty;  // "96% CDI", "IPCA +3.6%"
     public DateTime? MaturityDate { get; set; }  // Nullable
     public DateTime? ApplicationDate { get; set; }  // Nullable

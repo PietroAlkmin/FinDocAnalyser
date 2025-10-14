@@ -128,9 +128,9 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""type"": string,
         ""issuer"": string,
         ""investedAmount"": number,
-        ""currentValue"": number,
-        ""return"": number,
-        ""returnPercentage"": number,
+        ""currentValue"": number ou null,
+        ""return"": number ou null,
+        ""returnPercentage"": number ou null,
         ""rate"": string,
         ""maturityDate"": ""YYYY-MM-DD"" ou null,
         ""applicationDate"": ""YYYY-MM-DD"" ou null,
@@ -146,14 +146,18 @@ REGRAS para extração:
 2. Use ponto (.) como separador decimal
 3. Para percentuais, use o valor decimal (ex: 42.6 para 42,6%)
 4. Datas no formato ISO (YYYY-MM-DD)
-5. Se um dado não estiver disponível, use null
-6. Confidence scores: 
+5. Se um dado não estiver disponível, use null (exceto para campos obrigatórios)
+6. Campos OBRIGATÓRIOS (nunca null):
+   - totalInvestedAmount, invested, percentage, quantity, averagePrice, totalInvested, investedAmount, confidence
+7. Campos OPCIONAIS (podem ser null):
+   - return, returnPercentage, currentValue, maturityDate, applicationDate
+8. Confidence scores: 
    - 0.95-1.0: Dados em tabelas estruturadas com labels claros
    - 0.85-0.94: Dados identificáveis mas requerem interpretação
    - 0.70-0.84: Dados inferidos do contexto
    - 0.50-0.69: Dados incertos ou estimados
-   - < 0.50: Use null ao invés do valor
-7. ConfidenceReason: Explique BREVEMENTE por que atribuiu essa confiança
+   - < 0.50: Use null ao invés do valor (para campos opcionais)
+9. ConfidenceReason: Explique BREVEMENTE por que atribuiu essa confiança
 
 Tipos de ativos brasileiros comuns:
 - Ações: tickers terminam em números (ex: PETR4, VALE3)
