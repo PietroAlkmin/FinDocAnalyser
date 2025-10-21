@@ -1,0 +1,136 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste FinDoc Widget</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+
+        .result-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+            display: none;
+        }
+
+            .result-panel.show {
+                display: block;
+            }
+
+            .result-panel h2 {
+                margin: 0 0 16px 0;
+                color: #1f2937;
+            }
+
+            .result-panel pre {
+                background: #f3f4f6;
+                padding: 16px;
+                border-radius: 8px;
+                overflow-x: auto;
+                font-size: 12px;
+            }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Teste do FinDoc Widget</h1>
+
+        <findoc-upload-widget id="widget"></findoc-upload-widget>
+
+        <div id="result-panel" class="result-panel">
+            <h2>📊 Resultado da Análise</h2>
+            <div id="alerts"></div>
+            <pre id="result-data"></pre>
+        </div>
+    </div>
+
+    <script src="dist/findoc-widget.js"></script>
+
+    <script>
+    const widget = document.getElementById('widget');
+    const resultPanel = document.getElementById('result-panel');
+    const resultData = document.getElementById('result-data');
+    const alerts = document.getElementById('alerts');
+
+    widget.configure({
+      apiUrl: 'http://localhost:5070',
+      clientId: 'test-client-123',
+
+      onSuccess: (data) => {
+        console.log('✅ Análise concluída com sucesso!', data);
+
+        alerts.innerHTML = `
+          <div class="alert alert-success">
+            ✅ Análise concluída com sucesso! Patrimônio total: ${formatCurrency(data.total.totalInvestedAmount)}
+          </div>
+        `;
+
+        resultData.textContent = JSON.stringify(data, null, 2);
+        resultPanel.classList.add('show');
+        resultPanel.scrollIntoView({ behavior: 'smooth' });
+      },
+
+      onError: (error) => {
+        console.error('❌ Erro na análise:', error);
+
+        alerts.innerHTML = `
+          <div class="alert alert-error">
+            ❌ Erro ao processar: ${error}
+          </div>
+        `;
+
+        resultPanel.classList.add('show');
+      },
+
+      onProgress: (fileName, progress, message) => {
+        console.log(`📊 ${fileName}: ${progress}% - ${message}`);
+      }
+    });
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value);
+    }
+    </script>
+</body>
+</html>

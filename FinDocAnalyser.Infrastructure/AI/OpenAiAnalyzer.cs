@@ -111,7 +111,7 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""quantity"": number,
         ""averagePrice"": number,
         ""totalInvested"": number,
-        ""currentValue"": number,
+        ""currentValue"": number ou null,
         ""return"": number ou null,
         ""returnPercentage"": number ou null,
         ""confidence"": number,
@@ -150,7 +150,7 @@ REGRAS para extração:
 6. Campos OBRIGATÓRIOS (nunca null):
    - totalInvestedAmount, invested, percentage, quantity, averagePrice, totalInvested, investedAmount, confidence
 7. Campos OPCIONAIS (podem ser null):
-   - return, returnPercentage, currentValue, maturityDate, applicationDate
+   - return, returnPercentage, currentValue (tanto stocks quanto fixedIncome), maturityDate, applicationDate
 8. Confidence scores: 
    - 0.95-1.0: Dados em tabelas estruturadas com labels claros
    - 0.85-0.94: Dados identificáveis mas requerem interpretação

@@ -203,6 +203,28 @@ public class AnalysisController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Obtém o resultado completo da análise
+    /// </summary>
+    [HttpGet("{id}/complete")]
+    [ProducesResponseType(typeof(AnalysisResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetComplete(Guid id)
+    {
+        var result = await _orchestrator.GetAnalysisAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(result);
+    }
 }
 
 // DTOs para respostas
