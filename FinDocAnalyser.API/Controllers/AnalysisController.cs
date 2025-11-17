@@ -24,13 +24,18 @@ public class AnalysisController : ControllerBase
     /// Upload e análise de PDF financeiro
     /// </summary>
     /// <param name="file">Arquivo PDF do relatório financeiro</param>
+    /// <param name="userId">ID do usuário (opcional - para tracking)</param>
+    /// <param name="clientId">ID do cliente (opcional - para tracking)</param>
     /// <returns>ID da análise para consulta posterior</returns>
     [HttpPost]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(AnalysisResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> AnalyzePdf(IFormFile file)
+    public async Task<IActionResult> AnalyzePdf(
+        IFormFile file,
+        [FromForm] string? userId = null,
+        [FromForm] string? clientId = null)
     {
         try
         {
@@ -64,8 +69,8 @@ public class AnalysisController : ControllerBase
                 });
             }
 
-            _logger.LogInformation("Iniciando análise do arquivo: {FileName} ({FileSize} bytes)",
-                file.FileName, file.Length);
+            _logger.LogInformation("Iniciando análise do arquivo: {FileName} ({FileSize} bytes) - UserId: {UserId}",
+                file.FileName, file.Length, userId ?? "anonymous");
 
             // Lê o arquivo para byte array
             byte[] fileContent;
@@ -75,8 +80,12 @@ public class AnalysisController : ControllerBase
                 fileContent = memoryStream.ToArray();
             }
 
-            // Processa o PDF
-            var analysisId = await _orchestrator.ProcessPdfAsync(fileContent, file.FileName);
+            // Processa o PDF (com userId e clientId)
+            var analysisId = await _orchestrator.ProcessPdfAsync(
+                fileContent, 
+                file.FileName,
+                userId,
+                clientId);
 
             _logger.LogInformation("Análise concluída com sucesso. AnalysisId: {AnalysisId}", analysisId);
 
@@ -191,6 +200,28 @@ public class AnalysisController : ControllerBase
     public async Task<IActionResult> GetFixedIncome(Guid id)
     {
         var result = await _orchestrator.GetFixedIncomeAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtém os metadados completos da análise (incluindo custos, tokens, cache info)
+    /// </summary>
+    [HttpGet("{id}/metadata")]
+    [ProducesResponseType(typeof(AnalysisResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFullAnalysis(Guid id)
+    {
+        var result = await _orchestrator.GetAnalysisAsync(id);
 
         if (result == null)
         {

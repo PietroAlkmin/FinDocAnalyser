@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Models;
@@ -11,25 +12,34 @@ namespace FinDocAnalyzer.Core.Services;
 
 public class AnalysisOrchestrator
 {
-    private readonly IPdfExtractor _pdfExtractor; //Instanciando as interfaces
+    private readonly IPdfExtractor _pdfExtractor;
     private readonly IAiAnalyzer _aiAnalyzer;
     private readonly IResultStore _resultStore;
+    private readonly IPdfCache? _pdfCache;
 
     public AnalysisOrchestrator(
         IPdfExtractor pdfExtractor,
         IAiAnalyzer aiAnalyzer,
-        IResultStore resultStore)
+        IResultStore resultStore,
+        IPdfCache? pdfCache = null)
     {
         _pdfExtractor = pdfExtractor;
         _aiAnalyzer = aiAnalyzer;
         _resultStore = resultStore;
-    } // Crei um construtor para receber as interfaces via injeção de dependência
+        _pdfCache = pdfCache;
+    }
 
     /// <summary>
-    /// Processa um PDF e retorna o ID da análise
+    /// Processa um PDF e retorna o ID da análise (com suporte a cache e userId)
     /// </summary>
-    public async Task<Guid> ProcessPdfAsync(byte[] pdfContent, string fileName)
+    public async Task<Guid> ProcessPdfAsync(
+        byte[] pdfContent, 
+        string fileName, 
+        string? userId = null,
+        string? clientId = null)
     {
+        var stopwatch = Stopwatch.StartNew();
+        
         try
         {
             // 1. VALIDAÇÃO: Verifica se é um PDF válido
@@ -38,7 +48,34 @@ public class AnalysisOrchestrator
                 throw new InvalidOperationException("O arquivo enviado não é um PDF válido.");
             }
 
-            // 2. EXTRAÇÃO: Extrai texto do PDF
+            // 2. CACHE: Verifica se já processamos este PDF (SHA256)
+            string? fileHash = null;
+            if (_pdfCache != null)
+            {
+                fileHash = _pdfCache.ComputeHash(pdfContent);
+                var cachedResult = await _pdfCache.GetCachedAnalysisAsync(fileHash);
+                
+                if (cachedResult != null)
+                {
+                    // Atualiza userId se fornecido
+                    if (!string.IsNullOrEmpty(userId))
+                        cachedResult.UserId = userId;
+                    if (!string.IsNullOrEmpty(clientId))
+                        cachedResult.ClientId = clientId;
+
+                    // Gera novo ID mas mantém dados
+                    cachedResult.AnalysisId = Guid.NewGuid();
+                    cachedResult.CreatedAt = DateTime.UtcNow;
+                    cachedResult.ExpiresAt = DateTime.UtcNow.AddMinutes(30);
+
+                    // Armazena resultado (novo ID)
+                    await _resultStore.StoreAsync(cachedResult, TimeSpan.FromMinutes(30));
+
+                    return cachedResult.AnalysisId;
+                }
+            }
+
+            // 3. EXTRAÇÃO: Extrai texto do PDF
             var extractedText = await _pdfExtractor.ExtractTextAsync(pdfContent);
 
             if (string.IsNullOrWhiteSpace(extractedText))
@@ -46,13 +83,29 @@ public class AnalysisOrchestrator
                 throw new InvalidOperationException("Não foi possível extrair texto do PDF. O arquivo pode estar vazio ou conter apenas imagens.");
             }
 
-            // 3. ANÁLISE: Envia para IA analisar
+            // 4. ANÁLISE: Envia para IA analisar
             var analysisResult = await _aiAnalyzer.AnalyzeAsync(extractedText);
 
-            // 4. ARMAZENAMENTO: Salva resultado por 30 minutos
+            stopwatch.Stop();
+
+            // 5. ENRIQUECIMENTO: Adiciona metadados
+            analysisResult.UserId = userId ?? string.Empty;
+            analysisResult.ClientId = clientId;
+            analysisResult.FileName = fileName;
+            analysisResult.FileSizeBytes = pdfContent.Length;
+            analysisResult.FileHash = fileHash ?? string.Empty;
+            analysisResult.Audit.ProcessingDuration = stopwatch.Elapsed;
+
+            // 6. CACHE: Salva no cache de PDFs
+            if (_pdfCache != null && !string.IsNullOrEmpty(fileHash))
+            {
+                await _pdfCache.SetCachedAnalysisAsync(fileHash, analysisResult, TimeSpan.FromHours(24));
+            }
+
+            // 7. ARMAZENAMENTO: Salva resultado por 30 minutos
             await _resultStore.StoreAsync(analysisResult, TimeSpan.FromMinutes(30));
 
-            // 5. RETORNO: Retorna o ID para o cliente usar nos endpoints
+            // 8. RETORNO: Retorna o ID para o cliente usar nos endpoints
             return analysisResult.AnalysisId;
         }
         catch (InvalidOperationException)
