@@ -30,13 +30,9 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Processa um PDF e retorna o ID da análise (com suporte a cache e userId)
+    /// Processa um PDF e retorna o ID da análise (com suporte a cache)
     /// </summary>
-    public async Task<Guid> ProcessPdfAsync(
-        byte[] pdfContent, 
-        string fileName, 
-        string? userId = null,
-        string? clientId = null)
+    public async Task<Guid> ProcessPdfAsync(byte[] pdfContent, string fileName)
     {
         var stopwatch = Stopwatch.StartNew();
         
@@ -57,12 +53,6 @@ public class AnalysisOrchestrator
                 
                 if (cachedResult != null)
                 {
-                    // Atualiza userId se fornecido
-                    if (!string.IsNullOrEmpty(userId))
-                        cachedResult.UserId = userId;
-                    if (!string.IsNullOrEmpty(clientId))
-                        cachedResult.ClientId = clientId;
-
                     // Gera novo ID mas mantém dados
                     cachedResult.AnalysisId = Guid.NewGuid();
                     cachedResult.CreatedAt = DateTime.UtcNow;
@@ -89,8 +79,6 @@ public class AnalysisOrchestrator
             stopwatch.Stop();
 
             // 5. ENRIQUECIMENTO: Adiciona metadados
-            analysisResult.UserId = userId ?? string.Empty;
-            analysisResult.ClientId = clientId;
             analysisResult.FileName = fileName;
             analysisResult.FileSizeBytes = pdfContent.Length;
             analysisResult.FileHash = fileHash ?? string.Empty;
