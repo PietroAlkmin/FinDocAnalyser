@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
         if (options.StorageType == StorageType.InMemory)
         {
             services.TryAddSingleton<IResultStore, InMemoryResultStore>();
+            services.TryAddSingleton<IConsolidationStore, InMemoryConsolidationStore>();
         }
         // Redis será implementado posteriormente
         // else if (options.StorageType == StorageType.Redis)

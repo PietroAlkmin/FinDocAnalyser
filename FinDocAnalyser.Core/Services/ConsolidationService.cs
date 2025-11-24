@@ -11,16 +11,18 @@ namespace FinDocAnalyzer.Core.Services;
 public class ConsolidationService
 {
     private readonly IResultStore _resultStore;
+    private readonly IConsolidationStore _consolidationStore;
     private readonly ICurrencyConverter _currencyConverter;
     private readonly ILogger<ConsolidationService> _logger;
-    private readonly Dictionary<Guid, ConsolidatedPortfolio> _consolidations = new();
 
     public ConsolidationService(
         IResultStore resultStore,
+        IConsolidationStore consolidationStore,
         ICurrencyConverter currencyConverter,
         ILogger<ConsolidationService> logger)
     {
         _resultStore = resultStore;
+        _consolidationStore = consolidationStore;
         _currencyConverter = currencyConverter;
         _logger = logger;
     }
@@ -65,6 +67,11 @@ public class ConsolidationService
         var performance = await AggregatePerformanceAsync(analyses, baseCurrency);
         var liquidity = await AggregateLiquidityAsync(analyses, baseCurrency);
         var diversification = await AggregateDiversificationAsync(analyses, baseCurrency);
+        
+        // 🆕 AGREGA ATIVOS DETALHADOS (todos os ativos de todos os PDFs)
+        var classification = await AggregateClassificationAsync(analyses, baseCurrency);
+        var stocks = await AggregateStocksAsync(analyses, baseCurrency);
+        var fixedIncome = await AggregateFixedIncomeAsync(analyses, baseCurrency);
 
         stopwatch.Stop();
 
@@ -78,6 +85,9 @@ public class ConsolidationService
             Performance = performance,
             Liquidity = liquidity,
             Diversification = diversification,
+            Classification = classification,  // 🆕 Agora populado!
+            Stocks = stocks,                   // 🆕 Agora populado!
+            FixedIncome = fixedIncome,         // 🆕 Agora populado!
             Metadata = new ConsolidationMetadata
             {
                 ReportsAnalyzed = analyses.Count,
@@ -92,8 +102,8 @@ public class ConsolidationService
             }
         };
 
-        // Armazena consolidação
-        _consolidations[consolidated.ConsolidationId] = consolidated;
+        // Armazena consolidação com expiração de 2 horas
+        await _consolidationStore.StoreAsync(consolidated, TimeSpan.FromHours(2));
 
         _logger.LogInformation("═══════════════════════════════════════════════════════════════");
         _logger.LogInformation("[CONSOLIDATION] ✓ Concluído: {Invested:C} total, {Return:C} retorno ({ReturnPct:N2}%)",
@@ -108,7 +118,7 @@ public class ConsolidationService
     /// </summary>
     public Task<ConsolidatedPortfolio?> GetConsolidatedAsync(Guid consolidationId)
     {
-        return GetConsolidationAsync(consolidationId);
+        return _consolidationStore.GetAsync(consolidationId);
     }
 
     /// <summary>
@@ -116,8 +126,7 @@ public class ConsolidationService
     /// </summary>
     public Task<ConsolidatedPortfolio?> GetConsolidationAsync(Guid consolidationId)
     {
-        _consolidations.TryGetValue(consolidationId, out var portfolio);
-        return Task.FromResult(portfolio);
+        return _consolidationStore.GetAsync(consolidationId);
     }
 
     /// <summary>
@@ -125,7 +134,7 @@ public class ConsolidationService
     /// </summary>
     public Task<List<ConsolidatedPortfolio>> ListConsolidationsAsync()
     {
-        return Task.FromResult(_consolidations.Values.ToList());
+        return _consolidationStore.ListAllAsync();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
@@ -405,6 +414,230 @@ public class ConsolidationService
             LargestAsset = largestAsset ?? "-",
             LargestAssetPercentage = concentrationRisk,
             DiversificationScore = score
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // MÉTODOS DE AGREGAÇÃO DETALHADA (NOVOS - mostram TODOS os ativos)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    private async Task<ConsolidatedClassification> AggregateClassificationAsync(List<AnalysisResult> analyses, string baseCurrency)
+    {
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+        _logger.LogInformation("[CLASSIFICATION] Agregando classificação de ativos de {Count} PDFs", analyses.Count);
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+
+        var classDict = new Dictionary<string, ConsolidatedAssetClass>();
+        decimal totalInvested = 0;
+
+        foreach (var analysis in analyses)
+        {
+            if (analysis.Classification?.Classes == null) continue;
+
+            var currency = analysis.Total.Currency;
+            var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
+
+            foreach (var assetClass in analysis.Classification.Classes)
+            {
+                var invested = assetClass.Invested * rate;
+                totalInvested += invested;
+
+                if (!classDict.ContainsKey(assetClass.AssetClassName))
+                {
+                    classDict[assetClass.AssetClassName] = new ConsolidatedAssetClass
+                    {
+                        ClassName = assetClass.AssetClassName,
+                        Invested = 0,
+                        CurrentValue = 0,
+                        Return = 0,
+                        AssetCount = 0
+                    };
+                }
+
+                classDict[assetClass.AssetClassName].Invested += invested;
+                classDict[assetClass.AssetClassName].CurrentValue += invested; // Será recalculado se houver valor atual
+                classDict[assetClass.AssetClassName].AssetCount++;
+            }
+
+            _logger.LogInformation("[CLASSIFICATION] ✓ {FileName}: {Classes} classes agregadas",
+                analysis.FileName, analysis.Classification.Classes.Count);
+        }
+
+        // Calcula percentuais
+        foreach (var cls in classDict.Values)
+        {
+            cls.Percentage = totalInvested > 0 ? (cls.Invested / totalInvested) * 100 : 0;
+            cls.Return = cls.CurrentValue - cls.Invested;
+            cls.ReturnPercentage = cls.Invested > 0 ? (cls.Return / cls.Invested) * 100 : 0;
+        }
+
+        _logger.LogInformation("[CLASSIFICATION] TOTAL: {Classes} classes únicas, {Total:C} {Currency}",
+            classDict.Count, totalInvested, baseCurrency);
+
+        return new ConsolidatedClassification
+        {
+            TotalInvested = totalInvested,
+            Currency = baseCurrency,
+            Classes = classDict.Values.OrderByDescending(c => c.Invested).ToList()
+        };
+    }
+
+    private async Task<ConsolidatedStocks> AggregateStocksAsync(List<AnalysisResult> analyses, string baseCurrency)
+    {
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+        _logger.LogInformation("[STOCKS] Consolidando ações de {Count} PDFs", analyses.Count);
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+
+        // Agrupa por ticker (mesmo ticker em diferentes PDFs = mesmo ativo)
+        var stockDict = new Dictionary<string, ConsolidatedStock>();
+        decimal totalInvested = 0;
+        decimal totalCurrentValue = 0;
+
+        foreach (var analysis in analyses)
+        {
+            if (analysis.Stocks?.Stocks == null) continue;
+
+            var currency = analysis.Total.Currency;
+            var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
+
+            foreach (var stock in analysis.Stocks.Stocks)
+            {
+                var ticker = stock.Ticker.ToUpperInvariant();
+                var invested = (stock.TotalInvested ?? 0) * rate;
+                var currentValue = (stock.CurrentValue ?? invested) * rate;
+                var quantity = stock.Quantity ?? 0;
+
+                if (!stockDict.ContainsKey(ticker))
+                {
+                    stockDict[ticker] = new ConsolidatedStock
+                    {
+                        Ticker = ticker,
+                        TotalQuantity = 0,
+                        TotalInvested = 0,
+                        CurrentValue = 0,
+                        AveragePrice = 0
+                    };
+                }
+
+                stockDict[ticker].TotalQuantity += quantity;
+                stockDict[ticker].TotalInvested += invested;
+                stockDict[ticker].CurrentValue += currentValue;
+
+                totalInvested += invested;
+                totalCurrentValue += currentValue;
+            }
+
+            _logger.LogInformation("[STOCKS] ✓ {FileName}: {Count} ações agregadas",
+                analysis.FileName, analysis.Stocks.Stocks.Count);
+        }
+
+        // Calcula preço médio e retornos
+        foreach (var stock in stockDict.Values)
+        {
+            stock.AveragePrice = stock.TotalQuantity > 0 ? stock.TotalInvested / stock.TotalQuantity : 0;
+            stock.Return = stock.CurrentValue - stock.TotalInvested;
+            stock.ReturnPercentage = stock.TotalInvested > 0 ? (stock.Return / stock.TotalInvested) * 100 : 0;
+            stock.PortfolioPercentage = totalInvested > 0 ? (stock.TotalInvested / totalInvested) * 100 : 0;
+        }
+
+        var totalReturn = totalCurrentValue - totalInvested;
+        var returnPct = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+
+        _logger.LogInformation("[STOCKS] TOTAL: {Count} ações únicas, {Invested:C} investido, {Return:C} retorno ({ReturnPct:N2}%)",
+            stockDict.Count, totalInvested, totalReturn, returnPct);
+
+        return new ConsolidatedStocks
+        {
+            TotalInvested = totalInvested,
+            CurrentValue = totalCurrentValue,
+            TotalReturn = totalReturn,
+            ReturnPercentage = returnPct,
+            Currency = baseCurrency,
+            Stocks = stockDict.Values.OrderByDescending(s => s.TotalInvested).ToList()
+        };
+    }
+
+    private async Task<ConsolidatedFixedIncome> AggregateFixedIncomeAsync(List<AnalysisResult> analyses, string baseCurrency)
+    {
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+        _logger.LogInformation("[FIXED INCOME] Consolidando renda fixa de {Count} PDFs", analyses.Count);
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+
+        // Agrupa por nome + emissor (CDB XP != CDB BTG)
+        var assetDict = new Dictionary<string, ConsolidatedFixedIncomeAsset>();
+        decimal totalInvested = 0;
+        decimal totalCurrentValue = 0;
+
+        foreach (var analysis in analyses)
+        {
+            if (analysis.FixedIncome?.Assets == null) continue;
+
+            var currency = analysis.Total.Currency;
+            var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
+
+            foreach (var asset in analysis.FixedIncome.Assets)
+            {
+                // Chave única: Tipo + Emissor + Nome (evita duplicatas)
+                var key = $"{asset.Type}_{asset.Issuer}_{asset.Name}".ToUpperInvariant();
+                var invested = (asset.InvestedAmount ?? 0) * rate;
+                var currentValue = (asset.CurrentValue ?? invested) * rate;
+
+                if (!assetDict.ContainsKey(key))
+                {
+                    assetDict[key] = new ConsolidatedFixedIncomeAsset
+                    {
+                        Name = asset.Name,
+                        Type = asset.Type,
+                        Issuer = asset.Issuer,
+                        TotalInvested = 0,
+                        CurrentValue = 0,
+                        NearestMaturity = asset.MaturityDate
+                    };
+                }
+
+                assetDict[key].TotalInvested += invested;
+                assetDict[key].CurrentValue += currentValue;
+
+                // Mantém o vencimento mais próximo
+                if (asset.MaturityDate.HasValue)
+                {
+                    if (!assetDict[key].NearestMaturity.HasValue ||
+                        asset.MaturityDate.Value < assetDict[key].NearestMaturity.Value)
+                    {
+                        assetDict[key].NearestMaturity = asset.MaturityDate;
+                    }
+                }
+
+                totalInvested += invested;
+                totalCurrentValue += currentValue;
+            }
+
+            _logger.LogInformation("[FIXED INCOME] ✓ {FileName}: {Count} ativos de renda fixa agregados",
+                analysis.FileName, analysis.FixedIncome.Assets.Count);
+        }
+
+        // Calcula retornos e percentuais
+        foreach (var asset in assetDict.Values)
+        {
+            asset.Return = asset.CurrentValue - asset.TotalInvested;
+            asset.ReturnPercentage = asset.TotalInvested > 0 ? (asset.Return / asset.TotalInvested) * 100 : 0;
+            asset.PortfolioPercentage = totalInvested > 0 ? (asset.TotalInvested / totalInvested) * 100 : 0;
+        }
+
+        var totalReturn = totalCurrentValue - totalInvested;
+        var returnPct = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+
+        _logger.LogInformation("[FIXED INCOME] TOTAL: {Count} ativos únicos, {Invested:C} investido, {Return:C} retorno ({ReturnPct:N2}%)",
+            assetDict.Count, totalInvested, totalReturn, returnPct);
+
+        return new ConsolidatedFixedIncome
+        {
+            TotalInvested = totalInvested,
+            CurrentValue = totalCurrentValue,
+            TotalReturn = totalReturn,
+            ReturnPercentage = returnPct,
+            Currency = baseCurrency,
+            Assets = assetDict.Values.OrderByDescending(a => a.TotalInvested).ToList()
         };
     }
 
