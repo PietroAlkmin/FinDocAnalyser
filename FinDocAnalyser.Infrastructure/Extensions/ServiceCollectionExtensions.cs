@@ -2,6 +2,7 @@ using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Services;
 using FinDocAnalyzer.Infrastructure.AI;
 using FinDocAnalyzer.Infrastructure.Caching;
+using FinDocAnalyzer.Infrastructure.Currency;
 using FinDocAnalyzer.Infrastructure.Pdf;
 using FinDocAnalyzer.Infrastructure.Storage;
 using Microsoft.Extensions.AI;
@@ -30,8 +31,16 @@ public static class ServiceCollectionExtensions
 
         // Registra serviços core
         services.AddScoped<AnalysisOrchestrator>();
+        services.AddScoped<ConsolidationService>();
         services.AddScoped<IPdfExtractor, PdfPigExtractor>();
         services.AddScoped<IAiAnalyzer, AiDocumentAnalyzer>();
+
+        // Conversor de moedas (Banco Central do Brasil - USD↔BRL apenas)
+        services.AddHttpClient<ICurrencyConverter, BcbUsdBrlConverter>(client =>
+        {
+            client.BaseAddress = new Uri("https://olinda.bcb.gov.br");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
 
         // Cache de PDFs
         if (options.EnablePdfCache)

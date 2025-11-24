@@ -16,10 +16,10 @@ public class StockPortfolio
 public class StockHolding
 {
     public string Ticker { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public decimal AveragePrice { get; set; }
-    public decimal TotalInvested { get; set; }
-    public decimal CurrentValue { get; set; }
+    public int? Quantity { get; set; }  // Nullable - pode não estar disponível
+    public decimal? AveragePrice { get; set; }  // Nullable - pode não estar disponível
+    public decimal? TotalInvested { get; set; }  // Nullable - pode não estar disponível
+    public decimal? CurrentValue { get; set; }  // Nullable - pode não estar disponível
     public decimal? Return { get; set; }  // Nullable - pode ser null
     public decimal? ReturnPercentage { get; set; }  // Nullable
     public decimal Confidence { get; set; }

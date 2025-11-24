@@ -31,8 +31,41 @@ public class AnalysisResult
     public StockPortfolio Stocks { get; set; } = new();
     public FixedIncomePortfolio FixedIncome { get; set; } = new();
 
+    // Análises calculadas pela AI
+    public PortfolioAnalysis? Analysis { get; set; }
+
     // Metadados da análise
     public AnalysisMetadata Metadata { get; set; } = new();
+}
+
+/// <summary>
+/// Análises e cálculos feitos pela AI (interpretação inteligente)
+/// </summary>
+public class PortfolioAnalysis
+{
+    // Performance calculada pela AI (nullable quando dados insuficientes)
+    public decimal? TotalReturn { get; set; } // Retorno total em valor absoluto (moeda do relatório) - null se não calculável
+    public decimal? TotalReturnPercentage { get; set; } // Retorno total em % - null se não calculável
+    public string? BestAsset { get; set; } // Melhor ativo (ticker ou nome)
+    public decimal? BestAssetReturn { get; set; } // Retorno % do melhor ativo
+    public string? WorstAsset { get; set; } // Pior ativo
+    public decimal? WorstAssetReturn { get; set; } // Retorno % do pior ativo
+
+    // Diversificação analisada pela AI (nullable quando não calculável)
+    public int? UniqueIssuers { get; set; } // Número de emissores diferentes
+    public int? UniqueAssetTypes { get; set; } // Número de tipos de ativos diferentes
+    public decimal? ConcentrationRisk { get; set; } // % do maior ativo individual
+    public string? MostConcentratedAsset { get; set; } // Ativo mais concentrado
+
+    // Liquidez analisada pela AI (nullable quando não calculável)
+    public decimal? HighLiquidityPercentage { get; set; } // % em ativos de alta liquidez
+    public decimal? MediumLiquidityPercentage { get; set; } // % em ativos de média liquidez
+    public decimal? LowLiquidityPercentage { get; set; } // % em ativos de baixa liquidez
+
+    // Observações da AI
+    public string? Notes { get; set; } // Observações relevantes identificadas pela AI
+    public List<string>? Warnings { get; set; } // Alertas (dados incompletos, inconsistências)
+    public decimal? ConfidenceScore { get; set; } // Confiança geral da análise (0-1)
 }
 
 /// <summary>

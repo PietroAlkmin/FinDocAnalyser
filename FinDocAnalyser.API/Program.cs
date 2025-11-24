@@ -101,6 +101,46 @@ public class FileUploadOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOper
 {
     public void Apply(Microsoft.OpenApi.Models.OpenApiOperation operation, Swashbuckle.AspNetCore.SwaggerGen.OperationFilterContext context)
     {
+        // Detecta parâmetro List<IFormFile>
+        var listFormFileParams = context.MethodInfo.GetParameters()
+            .Where(p => p.ParameterType == typeof(List<IFormFile>))
+            .ToList();
+
+        if (listFormFileParams.Any())
+        {
+            operation.Parameters?.Clear();
+
+            operation.RequestBody = new Microsoft.OpenApi.Models.OpenApiRequestBody
+            {
+                Content = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiMediaType>
+                {
+                    ["multipart/form-data"] = new Microsoft.OpenApi.Models.OpenApiMediaType
+                    {
+                        Schema = new Microsoft.OpenApi.Models.OpenApiSchema
+                        {
+                            Type = "object",
+                            Properties = new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSchema>
+                            {
+                                ["files"] = new Microsoft.OpenApi.Models.OpenApiSchema
+                                {
+                                    Type = "array",
+                                    Items = new Microsoft.OpenApi.Models.OpenApiSchema
+                                    {
+                                        Type = "string",
+                                        Format = "binary"
+                                    },
+                                    Description = "Arquivos PDF dos relatórios financeiros (1-20 arquivos, máx 50MB cada)"
+                                }
+                            },
+                            Required = new HashSet<string> { "files" }
+                        }
+                    }
+                }
+            };
+            return;
+        }
+
+        // Detecta parâmetro IFormFile (fallback)
         var formFileParams = context.MethodInfo.GetParameters()
             .Where(p => p.ParameterType == typeof(IFormFile))
             .ToList();
@@ -126,16 +166,6 @@ public class FileUploadOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOper
                                 Type = "string",
                                 Format = "binary",
                                 Description = "Arquivo PDF do relatório financeiro (máx 50MB)"
-                            },
-                            ["userId"] = new Microsoft.OpenApi.Models.OpenApiSchema
-                            {
-                                Type = "string",
-                                Description = "ID do usuário (opcional - para tracking multi-tenant)"
-                            },
-                            ["clientId"] = new Microsoft.OpenApi.Models.OpenApiSchema
-                            {
-                                Type = "string",
-                                Description = "ID do cliente (opcional - para tracking multi-tenant)"
                             }
                         },
                         Required = new HashSet<string> { "file" }

@@ -83,6 +83,7 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
                 Classification = extractedData.Classification,
                 Stocks = extractedData.Stocks,
                 FixedIncome = extractedData.FixedIncome,
+                Analysis = extractedData.Analysis, // 🆕 Análises calculadas pela AI
                 Metadata = new AnalysisMetadata
                 {
                     ReportType = DetectReportType(extractedText),
@@ -177,10 +178,65 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""confidenceReason"": string
       }
     ]
+  },
+  ""analysis"": {
+    ""totalReturn"": number (CALCULE: soma de todos os returns de stocks + fixedIncome),
+    ""totalReturnPercentage"": number (CALCULE: (totalReturn / totalInvestedAmount) × 100),
+    ""bestAsset"": string ou null (ticker ou nome do ativo com MAIOR returnPercentage),
+    ""bestAssetReturn"": number ou null (returnPercentage do melhor ativo),
+    ""worstAsset"": string ou null (ticker ou nome do ativo com MENOR returnPercentage),
+    ""worstAssetReturn"": number ou null (returnPercentage do pior ativo),
+    ""uniqueIssuers"": number (CONTE: quantos emissores diferentes - empresas de ações + emissores de renda fixa),
+    ""uniqueAssetTypes"": number (CONTE: quantos tipos diferentes - stocks, bonds, CDB, LCI, etc),
+    ""concentrationRisk"": number (CALCULE: % do ativo individual de MAIOR currentValue em relação ao total - use formato DECIMAL 0.0-100.0, ex: 15.5 para 15.5%),
+    ""mostConcentratedAsset"": string ou null (nome/ticker do ativo de maior valor),
+    ""highLiquidityPercentage"": number (ESTIME: % em caixa, fundos DI, ativos D+0 - formato DECIMAL 0.0-100.0),
+    ""mediumLiquidityPercentage"": number (ESTIME: % em ações líquidas, ETFs - formato DECIMAL 0.0-100.0),
+    ""lowLiquidityPercentage"": number (ESTIME: % em renda fixa com vencimento, imóveis, etc - formato DECIMAL 0.0-100.0),
+    ""notes"": string ou null (observações relevantes - ex: ""Portfolio concentrado em tech stocks""),
+    ""warnings"": [string] (alertas - ex: [""Preço médio não disponível para PETR4"", ""Data de vencimento ausente em 3 CDBs""]),
+    ""confidenceScore"": number (AVALIE: confiança geral da análise, 0.0 a 1.0)
   }
 }
 
-REGRAS UNIVERSAIS para extração:
+INSTRUÇÕES CRÍTICAS PARA A SEÇÃO ""analysis"":
+
+1. CALCULE os retornos totais:
+   - Some TODOS os ""return"" de stocks e fixedIncome
+   - Se algum ""return"" for null, ignore-o na soma (não conte como zero)
+   - Calcule o % dividindo pelo totalInvestedAmount
+
+2. IDENTIFIQUE melhor e pior ativos:
+   - Compare os ""returnPercentage"" de TODOS os ativos
+   - Use o ticker para stocks, o ""name"" para fixedIncome
+   - Se não houver returnPercentage, use null
+
+3. ANALISE diversificação:
+   - Count issuers: Para stocks use o ticker (cada ticker = 1 emissor), para fixedIncome use o campo ""issuer""
+   - Count asset types: CDB, LCI, ações, bonds, etc são tipos diferentes
+   - Concentration: Ache o ativo individual de MAIOR ""currentValue"", divida pelo totalInvestedAmount, multiplique por 100
+   - Exemplo: Se maior ativo = 5000 e total = 32000, então concentrationRisk = (5000/32000) × 100 = 15.625
+
+4. ESTIME liquidez (use seu conhecimento financeiro):
+   - Alta: Caixa, Fundos DI, Tesouro Selic
+   - Média: Ações líquidas (grande cap), ETFs
+   - Baixa: CDB/LCI com prazo, Debêntures, small caps
+
+5. GERE warnings usando os dados REAIS do relatório:
+   - Liste APENAS problemas encontrados nos dados DESTE relatório específico
+   - Mencione tickers/nomes REAIS quando houver problemas (ex: ""Preço médio ausente para [ticker real]"")
+   - NÃO use exemplos genéricos - apenas dados reais extraídos
+   - Ex válido: ""Data de vencimento ausente em 3 CDBs"" (se realmente faltarem)
+   - Ex INVÁLIDO: ""Preço médio não disponível para PETR4"" (se PETR4 não existir no relatório)
+
+6. AVALIE confidence geral:
+   - Se TODOS os dados vieram de tabelas claras: 0.95+
+   - Se alguns dados foram inferidos: 0.80-0.94
+   - Se muitos dados estão faltando: 0.60-0.79
+   - Se o relatório é confuso/incompleto: < 0.60
+
+SEJA RIGOROSO: Use null quando não tiver certeza, mas SEMPRE tente calcular quando os dados necessários estiverem disponíveis.
+
 
 1. DETECÇÃO AUTOMÁTICA:
    - Detecte automaticamente a moeda do relatório (R$, $, €, £, USD, BRL, etc)
@@ -193,28 +249,33 @@ REGRAS UNIVERSAIS para extração:
    - Para percentuais, use o valor decimal (ex: 42.6 para 42,6%)
 
 3. TICKERS/CÓDIGOS:
-   - Brasil: tickers terminam em números (PETR4, VALE3, BOVA11)
-   - EUA: sem sufixos numéricos (AAPL, GOOGL, TSLA)
+   - Brasil: tickers terminam em números (XXXX3, YYYY4, ZZZZ11)
+   - EUA: sem sufixos numéricos (XXXX, YYYY, ZZZZ)
    - Offshore: pode ter variações (ADRs, etc)
 
 4. TIPOS DE ATIVOS (reconheça automaticamente):
    
    BRASIL:
-   - Ações: PETR4, VALE3, ITUB4
-   - ETFs: BOVA11, IVVB11, SMAL11
-   - Fundos: nomes longos (TREND DI FIC RF)
+   - Ações: formato XXXX3, YYYY4, ZZZZ32 (IMPORTANTE: mantenha ticker COMPLETO!)
+   - ETFs: formato XXXX11, YYYY11
+   - Fundos: nomes longos descritivos
    - Renda Fixa: LCI, LCA, CDB, Debêntures, CRI, CRA, Tesouro Direto
    
    INTERNACIONAL:
-   - Stocks: AAPL, GOOGL, MSFT, TSLA
-   - ETFs: SPY, VOO, QQQ
+   - Stocks: formato alfabético sem sufixo numérico
+   - ETFs: formato alfabético curto (3-4 letras)
    - Bonds: Treasury, Corporate, Municipal
    - Mutual Funds: Vanguard, Fidelity, etc
    
    OFFSHORE:
    - Pode combinar ativos globais
    - Valores em USD, EUR, CHF
-   - ADRs brasileiros: VALE, PBR
+   - ADRs podem usar formatos variados
+
+   REGRA CRÍTICA PARA TICKERS:
+   - Copie o ticker EXATAMENTE como aparece no PDF (sem truncar ou modificar)
+   - Tickers podem ter 4-6 caracteres - preserve TODOS os dígitos/sufixos
+   - Inclua todos os sufixos (F, B, números, etc.) - exemplo: XXXX32 não é XXXX3
 
 5. CONFIDENCE SCORES (seja rigoroso):
    - 0.95-1.0: Dados em tabelas estruturadas com labels explícitos
@@ -225,7 +286,7 @@ REGRAS UNIVERSAIS para extração:
 
 6. CONFIDENCE REASON:
    - Explique BREVEMENTE por que atribuiu essa confiança
-   - Ex: ""Valor em tabela estruturada"", ""Inferido do saldo total"", ""Ticker identificado no cabeçalho""
+   - Ex: ""Valor em tabela estruturada"", ""Inferido do saldo total"", ""Código identificado no cabeçalho""
 
 7. DADOS AUSENTES:
    - Se um dado não estiver disponível, use null
@@ -313,5 +374,6 @@ Seja preciso, consistente e adaptável. A qualidade dos dados é crítica.";
         public AssetClassification Classification { get; set; } = new();
         public StockPortfolio Stocks { get; set; } = new();
         public FixedIncomePortfolio FixedIncome { get; set; } = new();
+        public PortfolioAnalysis? Analysis { get; set; }
     }
 }
