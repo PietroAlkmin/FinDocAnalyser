@@ -1,6 +1,7 @@
 ﻿using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Models;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Diagnostics;
 
@@ -12,12 +13,14 @@ namespace FinDocAnalyzer.Infrastructure.AI;
 public class AiDocumentAnalyzer : IAiAnalyzer
 {
     private readonly IChatClient _chatClient;
+    private readonly ILogger<AiDocumentAnalyzer>? _logger;
     private const int MaxTextLength = 120000; // GPT-4o suporta mais tokens
     private const string DefaultModel = "gpt-4o";
 
-    public AiDocumentAnalyzer(IChatClient chatClient)
+    public AiDocumentAnalyzer(IChatClient chatClient, ILogger<AiDocumentAnalyzer>? logger = null)
     {
         _chatClient = chatClient;
+        _logger = logger;
     }
 
     public async Task<AnalysisResult> AnalyzeAsync(string extractedText)
@@ -26,13 +29,21 @@ public class AiDocumentAnalyzer : IAiAnalyzer
         
         try
         {
+            _logger?.LogInformation("═══════════════════════════════════════════════════════════════");
+            _logger?.LogInformation("[AI ANALYSIS] Iniciando análise de documento");
+            _logger?.LogInformation("═══════════════════════════════════════════════════════════════");
+
             // Trunca o texto se for muito longo
             var textToAnalyze = extractedText.Length > MaxTextLength
                 ? extractedText[..MaxTextLength]
                 : extractedText;
 
+            _logger?.LogInformation("[AI] Tamanho do texto: {Original} chars (truncado: {Truncated})", 
+                extractedText.Length, textToAnalyze.Length);
+
             // Conta páginas processadas (estimativa)
             var pageCount = CountPages(extractedText);
+            _logger?.LogInformation("[AI] Páginas detectadas: {Pages}", pageCount);
 
             // Cria o prompt universal e inteligente
             var systemPrompt = CreateUniversalPrompt();
@@ -41,6 +52,8 @@ public class AiDocumentAnalyzer : IAiAnalyzer
 {textToAnalyze}
 
 Retorne um JSON válido seguindo exatamente o schema definido.";
+
+            _logger?.LogInformation("[AI] Enviando para modelo: {Model}", DefaultModel);
 
             // Configura a chamada com Microsoft.Extensions.AI
             var chatOptions = new ChatOptions
@@ -67,11 +80,133 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
             var tokensUsed = response.Usage?.TotalTokenCount ?? 0;
             var modelUsed = response.ModelId ?? DefaultModel;
 
+            _logger?.LogInformation("[AI] Resposta recebida em {Duration}ms", stopwatch.ElapsedMilliseconds);
+            _logger?.LogInformation("[AI] Tokens usados: {Tokens} (custo estimado: {Cost:C})", 
+                tokensUsed, CalculateCost(tokensUsed, modelUsed));
+
             // Parse do JSON retornado
+            _logger?.LogInformation("───────────────────────────────────────────────────────────────");
+            _logger?.LogInformation("[AI] JSON bruto da resposta:");
+            _logger?.LogInformation("{JsonResponse}", response.Message.Text);
+            _logger?.LogInformation("───────────────────────────────────────────────────────────────");
+
             var extractedData = ParseAiResponse(response.Message.Text ?? string.Empty);
+
+            // Log dos dados extraídos
+            _logger?.LogInformation("[AI EXTRACTED] Total investido: {Total:C} {Currency}", 
+                extractedData.Total.TotalInvestedAmount, extractedData.Total.Currency);
+            
+            _logger?.LogInformation("[AI EXTRACTED] Classes de ativos: {Count}", 
+                extractedData.Classification.Classes.Count);
+            foreach (var assetClass in extractedData.Classification.Classes)
+            {
+                _logger?.LogInformation("  - {Class}: {Amount:C} ({Percentage:N2}%) [Confiança: {Confidence:N2}]",
+                    assetClass.AssetClassName, assetClass.Invested, assetClass.Percentage, assetClass.Confidence);
+            }
+
+            _logger?.LogInformation("[AI EXTRACTED] Ações: {Count} ativos, total {Total:C}", 
+                extractedData.Stocks.Stocks.Count, extractedData.Stocks.TotalInvested);
+            foreach (var stock in extractedData.Stocks.Stocks.Take(5))
+            {
+                _logger?.LogInformation("  - {Ticker}: {Qty} unidades = {Total:C}",
+                    stock.Ticker, stock.Quantity, stock.CurrentValue);
+            }
+
+            _logger?.LogInformation("[AI EXTRACTED] Renda Fixa: {Count} ativos, total {Total:C}", 
+                extractedData.FixedIncome.Assets.Count, extractedData.FixedIncome.TotalInvested);
+
+            // ═══════════════════════════════════════════════════════════════
+            // VALIDAÇÃO: Verificar se a AI somou corretamente
+            // ═══════════════════════════════════════════════════════════════
+            _logger?.LogInformation("───────────────────────────────────────────────────────────────");
+            _logger?.LogInformation("[VALIDATION] Verificando consistência dos dados da AI");
+            _logger?.LogInformation("───────────────────────────────────────────────────────────────");
+
+            // 1. Validar soma das CLASSIFICAÇÕES
+            var classificationSum = extractedData.Classification.Classes.Sum(c => c.Invested);
+            var classificationTotal = extractedData.Classification.TotalInvested;
+            var classificationDiff = Math.Abs(classificationSum - classificationTotal);
+
+            _logger?.LogInformation("[VALIDATION] Classification:");
+            _logger?.LogInformation("  • Soma das classes: {Sum:C}", classificationSum);
+            _logger?.LogInformation("  • Total declarado:  {Total:C}", classificationTotal);
+            _logger?.LogInformation("  • Diferença:        {Diff:C} {Status}", 
+                classificationDiff, classificationDiff > 0.01m ? "❌ ERRO!" : "✓");
+
+            // 2. Validar soma dos STOCKS
+            var stocksSum = extractedData.Stocks.Stocks.Sum(s => s.TotalInvested ?? 0);
+            var stocksTotal = extractedData.Stocks.TotalInvested;
+            var stocksDiff = Math.Abs(stocksSum - stocksTotal);
+
+            _logger?.LogInformation("[VALIDATION] Stocks:");
+            _logger?.LogInformation("  • Soma individual:  {Sum:C}", stocksSum);
+            _logger?.LogInformation("  • Total declarado:  {Total:C}", stocksTotal);
+            _logger?.LogInformation("  • Diferença:        {Diff:C} {Status}", 
+                stocksDiff, stocksDiff > 0.01m ? "❌ ERRO!" : "✓");
+
+            // 3. Validar soma da RENDA FIXA
+            var fixedSum = extractedData.FixedIncome.Assets.Sum(a => a.InvestedAmount ?? 0);
+            var fixedTotal = extractedData.FixedIncome.TotalInvested;
+            var fixedDiff = Math.Abs(fixedSum - fixedTotal);
+
+            _logger?.LogInformation("[VALIDATION] Fixed Income:");
+            _logger?.LogInformation("  • Soma individual:  {Sum:C}", fixedSum);
+            _logger?.LogInformation("  • Total declarado:  {Total:C}", fixedTotal);
+            _logger?.LogInformation("  • Diferença:        {Diff:C} {Status}", 
+                fixedDiff, fixedDiff > 0.01m ? "❌ ERRO!" : "✓");
+
+            // 4. Validar TOTAL GERAL vs SOMA DAS CLASSES
+            var grandTotal = extractedData.Total.TotalInvestedAmount;
+            var grandDiff = Math.Abs(classificationSum - grandTotal);
+
+            _logger?.LogInformation("[VALIDATION] Total Geral:");
+            _logger?.LogInformation("  • Total declarado:       {Total:C}", grandTotal);
+            _logger?.LogInformation("  • Soma classification:   {Sum:C}", classificationSum);
+            _logger?.LogInformation("  • Diferença:             {Diff:C} {Status}", 
+                grandDiff, grandDiff > 0.01m ? "❌ ERRO!" : "✓");
+
+            // 5. Log de WARNINGS se houver inconsistências
+            var hasErrors = classificationDiff > 0.01m || stocksDiff > 0.01m || fixedDiff > 0.01m || grandDiff > 0.01m;
+            if (hasErrors)
+            {
+                _logger?.LogWarning("═══════════════════════════════════════════════════════════════");
+                _logger?.LogWarning("⚠️  A IA COMETEU ERROS DE SOMA!");
+                _logger?.LogWarning("═══════════════════════════════════════════════════════════════");
+                if (classificationDiff > 0.01m)
+                    _logger?.LogWarning("  → Classes NÃO somam ao total declarado (diff: {Diff:C})", classificationDiff);
+                if (stocksDiff > 0.01m)
+                    _logger?.LogWarning("  → Stocks individuais NÃO somam ao total declarado (diff: {Diff:C})", stocksDiff);
+                if (fixedDiff > 0.01m)
+                    _logger?.LogWarning("  → Renda fixa individual NÃO soma ao total declarado (diff: {Diff:C})", fixedDiff);
+                if (grandDiff > 0.01m)
+                    _logger?.LogWarning("  → Total geral ≠ soma das classes (diff: {Diff:C})", grandDiff);
+                _logger?.LogWarning("═══════════════════════════════════════════════════════════════");
+            }
+            else
+            {
+                _logger?.LogInformation("[VALIDATION] ✅ Todos os totais estão consistentes!");
+            }
+            _logger?.LogInformation("───────────────────────────────────────────────────────────────");
+
+            if (extractedData.Analysis != null)
+            {
+                _logger?.LogInformation("[AI ANALYSIS] Performance:");
+                _logger?.LogInformation("  - Retorno Total: {Return:C} ({Pct:N2}%)", 
+                    extractedData.Analysis.TotalReturn, extractedData.Analysis.TotalReturnPercentage);
+                _logger?.LogInformation("  - Melhor ativo: {Asset} ({Return:N2}%)", 
+                    extractedData.Analysis.BestAsset, extractedData.Analysis.BestAssetReturn);
+                _logger?.LogInformation("  - Pior ativo: {Asset} ({Return:N2}%)", 
+                    extractedData.Analysis.WorstAsset, extractedData.Analysis.WorstAssetReturn);
+                _logger?.LogInformation("  - Risco concentração: {Risk:N2}% em {Asset}", 
+                    extractedData.Analysis.ConcentrationRisk, extractedData.Analysis.MostConcentratedAsset);
+            }
 
             // Calcula custo estimado (GPT-4o pricing)
             var estimatedCost = CalculateCost(tokensUsed, modelUsed);
+
+            _logger?.LogInformation("═══════════════════════════════════════════════════════════════");
+            _logger?.LogInformation("[AI ANALYSIS] ✓ Concluído com sucesso");
+            _logger?.LogInformation("═══════════════════════════════════════════════════════════════");
 
             // Cria o resultado final com metadados completos
             var result = new AnalysisResult

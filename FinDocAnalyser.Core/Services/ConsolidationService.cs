@@ -156,30 +156,48 @@ public class ConsolidationService
             var invested = analysis.Total.TotalInvestedAmount;
             var returnValue = analysis.Analysis?.TotalReturn ?? 0;
 
+            _logger.LogInformation("[SUMMARY INPUT] {FileName}:", analysis.FileName);
+            _logger.LogInformation("  - Total investido ORIGINAL: {Invested:C} {Currency}", invested, currency);
+            _logger.LogInformation("  - Retorno calculado pela AI: {Return:C} {Currency}", returnValue, currency);
+
             // Converte se necessário
             if (!currency.Equals(baseCurrency, StringComparison.OrdinalIgnoreCase))
             {
                 var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
+                
+                var investedBefore = invested;
+                var returnBefore = returnValue;
+                
                 invested *= rate;
                 returnValue *= rate;
                 
-                _logger.LogInformation("[SUMMARY] {FileName}: {OrigInvested:C} {Currency} × {Rate:N4} = {Invested:C} {Base}",
-                    analysis.FileName, analysis.Total.TotalInvestedAmount, currency, rate, invested, baseCurrency);
+                _logger.LogInformation("  - Taxa de conversão {From}→{To}: {Rate:N4}", currency, baseCurrency, rate);
+                _logger.LogInformation("  - APÓS conversão: {Invested:C} {Currency} (foi {Original:C})", 
+                    invested, baseCurrency, investedBefore);
+                _logger.LogInformation("  - Retorno APÓS conversão: {Return:C} {Currency} (foi {Original:C})", 
+                    returnValue, baseCurrency, returnBefore);
             }
             else
             {
-                _logger.LogInformation("[SUMMARY] {FileName}: {Invested:C} {Currency} (sem conversão)",
-                    analysis.FileName, invested, currency);
+                _logger.LogInformation("  - Mesma moeda base, sem conversão");
             }
 
             totalInvested += invested;
             totalReturn += returnValue;
+            
+            _logger.LogInformation("  - ACUMULADO até agora: {Total:C} investido, {Return:C} retorno", 
+                totalInvested, totalReturn);
         }
 
         var returnPercentage = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
 
-        _logger.LogInformation("[SUMMARY] TOTAL: {Invested:C} investido, {Return:C} retorno ({Pct:N2}%)",
-            totalInvested, totalReturn, returnPercentage);
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
+        _logger.LogInformation("[SUMMARY OUTPUT] TOTAIS FINAIS:");
+        _logger.LogInformation("  - Total investido: {Invested:C} {Currency}", totalInvested, baseCurrency);
+        _logger.LogInformation("  - Retorno total: {Return:C} {Currency}", totalReturn, baseCurrency);
+        _logger.LogInformation("  - Valor atual: {Current:C} {Currency}", totalInvested + totalReturn, baseCurrency);
+        _logger.LogInformation("  - Rentabilidade: {Pct:N2}%", returnPercentage);
+        _logger.LogInformation("───────────────────────────────────────────────────────────────");
 
         return new PortfolioSummary
         {
@@ -437,10 +455,17 @@ public class ConsolidationService
             var currency = analysis.Total.Currency;
             var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
 
+            _logger.LogInformation("[CLASSIFICATION] Processando {FileName} ({Currency} → {Base}, taxa={Rate:N4})",
+                analysis.FileName, currency, baseCurrency, rate);
+
             foreach (var assetClass in analysis.Classification.Classes)
             {
-                var invested = assetClass.Invested * rate;
+                var originalInvested = assetClass.Invested;
+                var invested = originalInvested * rate;
                 totalInvested += invested;
+
+                _logger.LogInformation("  • Classe '{ClassName}': {Original:C} {Currency} × {Rate:N4} = {Converted:C} {Base}",
+                    assetClass.AssetClassName, originalInvested, currency, rate, invested, baseCurrency);
 
                 if (!classDict.ContainsKey(assetClass.AssetClassName))
                 {
@@ -452,11 +477,17 @@ public class ConsolidationService
                         Return = 0,
                         AssetCount = 0
                     };
+                    _logger.LogInformation("    → Nova classe criada: '{ClassName}'", assetClass.AssetClassName);
                 }
 
+                var before = classDict[assetClass.AssetClassName].Invested;
                 classDict[assetClass.AssetClassName].Invested += invested;
                 classDict[assetClass.AssetClassName].CurrentValue += invested; // Será recalculado se houver valor atual
                 classDict[assetClass.AssetClassName].AssetCount++;
+                var after = classDict[assetClass.AssetClassName].Invested;
+
+                _logger.LogInformation("    → Acumulado '{ClassName}': {Before:C} + {Add:C} = {After:C} {Base}",
+                    assetClass.AssetClassName, before, invested, after, baseCurrency);
             }
 
             _logger.LogInformation("[CLASSIFICATION] ✓ {FileName}: {Classes} classes agregadas",
@@ -500,12 +531,20 @@ public class ConsolidationService
             var currency = analysis.Total.Currency;
             var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
 
+            _logger.LogInformation("[STOCKS] Processando {FileName} ({Currency} → {Base}, taxa={Rate:N4})",
+                analysis.FileName, currency, baseCurrency, rate);
+
             foreach (var stock in analysis.Stocks.Stocks)
             {
                 var ticker = stock.Ticker.ToUpperInvariant();
-                var invested = (stock.TotalInvested ?? 0) * rate;
-                var currentValue = (stock.CurrentValue ?? invested) * rate;
+                var originalInvested = stock.TotalInvested ?? 0;
+                var originalCurrent = stock.CurrentValue ?? originalInvested;
+                var invested = originalInvested * rate;
+                var currentValue = originalCurrent * rate;
                 var quantity = stock.Quantity ?? 0;
+
+                _logger.LogInformation("  • {Ticker}: Qtd={Qty}, Investido={OrigInv:C} {Currency} × {Rate:N4} = {Invested:C} {Base}",
+                    ticker, quantity, originalInvested, currency, rate, invested, baseCurrency);
 
                 if (!stockDict.ContainsKey(ticker))
                 {
@@ -517,11 +556,20 @@ public class ConsolidationService
                         CurrentValue = 0,
                         AveragePrice = 0
                     };
+                    _logger.LogInformation("    → Novo ticker criado: {Ticker}", ticker);
                 }
+
+                var beforeQty = stockDict[ticker].TotalQuantity;
+                var beforeInv = stockDict[ticker].TotalInvested;
+                var beforeCur = stockDict[ticker].CurrentValue;
 
                 stockDict[ticker].TotalQuantity += quantity;
                 stockDict[ticker].TotalInvested += invested;
                 stockDict[ticker].CurrentValue += currentValue;
+
+                _logger.LogInformation("    → Acumulado {Ticker}: Qtd={BeforeQty}+{AddQty}={AfterQty}, Investido={BeforeInv:C}+{AddInv:C}={AfterInv:C} {Base}",
+                    ticker, beforeQty, quantity, stockDict[ticker].TotalQuantity,
+                    beforeInv, invested, stockDict[ticker].TotalInvested, baseCurrency);
 
                 totalInvested += invested;
                 totalCurrentValue += currentValue;
@@ -575,12 +623,20 @@ public class ConsolidationService
             var currency = analysis.Total.Currency;
             var rate = await _currencyConverter.GetExchangeRateAsync(currency, baseCurrency);
 
+            _logger.LogInformation("[FIXED INCOME] Processando {FileName} ({Currency} → {Base}, taxa={Rate:N4})",
+                analysis.FileName, currency, baseCurrency, rate);
+
             foreach (var asset in analysis.FixedIncome.Assets)
             {
                 // Chave única: Tipo + Emissor + Nome (evita duplicatas)
                 var key = $"{asset.Type}_{asset.Issuer}_{asset.Name}".ToUpperInvariant();
-                var invested = (asset.InvestedAmount ?? 0) * rate;
-                var currentValue = (asset.CurrentValue ?? invested) * rate;
+                var originalInvested = asset.InvestedAmount ?? 0;
+                var originalCurrent = asset.CurrentValue ?? originalInvested;
+                var invested = originalInvested * rate;
+                var currentValue = originalCurrent * rate;
+
+                _logger.LogInformation("  • {Type} {Issuer} '{Name}': Investido={OrigInv:C} {Currency} × {Rate:N4} = {Invested:C} {Base}",
+                    asset.Type, asset.Issuer, asset.Name, originalInvested, currency, rate, invested, baseCurrency);
 
                 if (!assetDict.ContainsKey(key))
                 {
@@ -593,10 +649,17 @@ public class ConsolidationService
                         CurrentValue = 0,
                         NearestMaturity = asset.MaturityDate
                     };
+                    _logger.LogInformation("    → Novo ativo criado: {Key}", key);
                 }
+
+                var beforeInv = assetDict[key].TotalInvested;
+                var beforeCur = assetDict[key].CurrentValue;
 
                 assetDict[key].TotalInvested += invested;
                 assetDict[key].CurrentValue += currentValue;
+
+                _logger.LogInformation("    → Acumulado '{Name}': Investido={BeforeInv:C}+{AddInv:C}={AfterInv:C} {Base}",
+                    asset.Name, beforeInv, invested, assetDict[key].TotalInvested, baseCurrency);
 
                 // Mantém o vencimento mais próximo
                 if (asset.MaturityDate.HasValue)
@@ -605,6 +668,8 @@ public class ConsolidationService
                         asset.MaturityDate.Value < assetDict[key].NearestMaturity.Value)
                     {
                         assetDict[key].NearestMaturity = asset.MaturityDate;
+                        _logger.LogInformation("    → Vencimento mais próximo atualizado: {Maturity:yyyy-MM-dd}",
+                            asset.MaturityDate.Value);
                     }
                 }
 
