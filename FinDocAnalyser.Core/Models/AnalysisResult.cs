@@ -13,7 +13,7 @@ public class AnalysisResult
     public DateTime ExpiresAt { get; set; }
 
     // Tracking de usuário (multi-tenant)
-    public string UserId { get; set; } = string.Empty;
+    public string? UserId { get; set; } = string.Empty;
     public string? UserEmail { get; set; }
     public string? ClientId { get; set; }
 
@@ -26,13 +26,13 @@ public class AnalysisResult
     public AuditInfo Audit { get; set; } = new();
 
     // Dados extraídos
-    public TotalInvested Total { get; set; } = new();
-    public AssetClassification Classification { get; set; } = new();
-    public StockPortfolio Stocks { get; set; } = new();
-    public FixedIncomePortfolio FixedIncome { get; set; } = new();
+    public TotalInvested? Total { get; set; } = new();
+    public AssetClassification? Classification { get; set; } = new();
+    public StockPortfolio? Stocks { get; set; } = new();
+    public FixedIncomePortfolio? FixedIncome { get; set; } = new();
 
     // Metadados da análise
-    public AnalysisMetadata Metadata { get; set; } = new();
+    public AnalysisMetadata? Metadata { get; set; } = new();
 }
 
 /// <summary>
