@@ -21,79 +21,70 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Upload e análise de PDF financeiro
+    /// Upload e análise de PDF(s) financeiro(s) - processamento em paralelo
     /// </summary>
-    /// <param name="file">Arquivo PDF do relatório financeiro</param>
-    /// <returns>ID da análise para consulta posterior</returns>
+    /// <param name="files">Arquivo(s) PDF do(s) relatório(s) financeiro(s) - máximo 20 arquivos</param>
+    /// <returns>Resultado da análise em batch com IDs individuais</returns>
     [HttpPost]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(AnalysisResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(BatchAnalysisResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> AnalyzePdf(IFormFile file)
+    public async Task<IActionResult> AnalyzePdfs(List<IFormFile> files)
     {
         try
         {
-            // Validação 1: Arquivo enviado?
-            if (file == null || file.Length == 0)
+            // Validação 1: Arquivos enviados?
+            if (files == null || files.Count == 0)
             {
                 return BadRequest(new ErrorResponse
                 {
                     Error = "Nenhum arquivo foi enviado",
-                    Details = "Por favor, envie um arquivo PDF válido"
+                    Details = "Por favor, envie pelo menos um arquivo PDF válido"
                 });
             }
 
-            // Validação 2: Tamanho do arquivo
-            if (file.Length > MaxFileSizeBytes)
+            // Validação 2: Limite de arquivos
+            if (files.Count > 20)
             {
                 return BadRequest(new ErrorResponse
                 {
-                    Error = "Arquivo muito grande",
-                    Details = $"O tamanho máximo permitido é {MaxFileSizeBytes / 1024 / 1024} MB"
+                    Error = "Muitos arquivos",
+                    Details = "Máximo de 20 arquivos por requisição"
                 });
             }
 
-            // Validação 3: Tipo de arquivo
-            if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            _logger.LogInformation("Iniciando análise em batch: {FileCount} arquivo(s)", files.Count);
+
+            var tasks = new List<Task<BatchFileResult>>();
+
+            // Cria uma task para cada PDF (processamento paralelo)
+            foreach (var file in files)
             {
-                return BadRequest(new ErrorResponse
-                {
-                    Error = "Tipo de arquivo inválido",
-                    Details = "Apenas arquivos PDF são aceitos"
-                });
+                var task = ProcessSingleFileAsync(file);
+                tasks.Add(task);
             }
 
-            _logger.LogInformation("Iniciando análise do arquivo: {FileName} ({FileSize} bytes)",
-                file.FileName, file.Length);
+            // Aguarda TODOS os PDFs serem processados em paralelo
+            var results = await Task.WhenAll(tasks);
 
-            // Lê o arquivo para byte array
-            byte[] fileContent;
-            using (var memoryStream = new MemoryStream())
+            var successCount = results.Count(r => r.Success);
+            var failureCount = results.Count(r => !r.Success);
+
+            _logger.LogInformation(
+                "Análise em batch concluída: {SuccessCount}/{TotalCount} arquivos processados com sucesso",
+                successCount, files.Count);
+
+            // Retorna 202 Accepted com resultados individuais
+            var response = new BatchAnalysisResponse
             {
-                await file.CopyToAsync(memoryStream);
-                fileContent = memoryStream.ToArray();
-            }
-
-            // Processa o PDF
-            var analysisId = await _orchestrator.ProcessPdfAsync(
-                fileContent, 
-                file.FileName);
-
-            _logger.LogInformation("Análise concluída com sucesso. AnalysisId: {AnalysisId}", analysisId);
-
-            // Retorna 202 Accepted com o ID
-            var response = new AnalysisResponse
-            {
-                AnalysisId = analysisId,
-                Message = "Análise concluída com sucesso",
-                Endpoints = new AnalysisEndpoints
-                {
-                    Total = Url.Action(nameof(GetTotal), new { id = analysisId })!,
-                    Classification = Url.Action(nameof(GetClassification), new { id = analysisId })!,
-                    Stocks = Url.Action(nameof(GetStocks), new { id = analysisId })!,
-                    FixedIncome = Url.Action(nameof(GetFixedIncome), new { id = analysisId })!
-                }
+                TotalFiles = files.Count,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                Results = results.ToList(),
+                Message = successCount == files.Count 
+                    ? $"Todos os {successCount} arquivos processados com sucesso"
+                    : $"{successCount} de {files.Count} arquivos processados com sucesso ({failureCount} falharam)"
             };
 
             return Accepted(response);
@@ -227,6 +218,83 @@ public class AnalysisController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Processa um único arquivo PDF (usado internamente pelo batch)
+    /// </summary>
+    private async Task<BatchFileResult> ProcessSingleFileAsync(IFormFile file)
+    {
+        try
+        {
+            // Validação: Tamanho
+            if (file.Length > MaxFileSizeBytes)
+            {
+                return new BatchFileResult
+                {
+                    FileName = file.FileName,
+                    FileSizeBytes = file.Length,
+                    Success = false,
+                    Error = $"Arquivo muito grande (máximo {MaxFileSizeBytes / 1024 / 1024} MB)"
+                };
+            }
+
+            // Validação: Tipo
+            if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                return new BatchFileResult
+                {
+                    FileName = file.FileName,
+                    FileSizeBytes = file.Length,
+                    Success = false,
+                    Error = "Tipo de arquivo inválido (apenas PDF)"
+                };
+            }
+
+            _logger.LogInformation("[BATCH] Processando: {FileName} ({FileSize} bytes)",
+                file.FileName, file.Length);
+
+            // Lê o arquivo
+            byte[] fileContent;
+            using (var memoryStream = new MemoryStream())
+            {
+                await file.CopyToAsync(memoryStream);
+                fileContent = memoryStream.ToArray();
+            }
+
+            // Processa com AI dedicada
+            var analysisId = await _orchestrator.ProcessPdfAsync(fileContent, file.FileName);
+
+            _logger.LogInformation("[BATCH] ✅ Sucesso: {FileName} → {AnalysisId}",
+                file.FileName, analysisId);
+
+            return new BatchFileResult
+            {
+                FileName = file.FileName,
+                FileSizeBytes = file.Length,
+                Success = true,
+                AnalysisId = analysisId,
+                Endpoints = new AnalysisEndpoints
+                {
+                    Total = Url.Action(nameof(GetTotal), new { id = analysisId })!,
+                    Classification = Url.Action(nameof(GetClassification), new { id = analysisId })!,
+                    Stocks = Url.Action(nameof(GetStocks), new { id = analysisId })!,
+                    FixedIncome = Url.Action(nameof(GetFixedIncome), new { id = analysisId })!
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BATCH] ❌ Erro ao processar: {FileName}", file.FileName);
+
+            return new BatchFileResult
+            {
+                FileName = file.FileName,
+                FileSizeBytes = file.Length,
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
 }
 
 // DTOs para respostas
@@ -235,6 +303,25 @@ public class AnalysisResponse
     public Guid AnalysisId { get; set; }
     public string Message { get; set; } = string.Empty;
     public AnalysisEndpoints Endpoints { get; set; } = new();
+}
+
+public class BatchAnalysisResponse
+{
+    public int TotalFiles { get; set; }
+    public int SuccessCount { get; set; }
+    public int FailureCount { get; set; }
+    public List<BatchFileResult> Results { get; set; } = new();
+    public string Message { get; set; } = string.Empty;
+}
+
+public class BatchFileResult
+{
+    public string FileName { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; }
+    public bool Success { get; set; }
+    public Guid? AnalysisId { get; set; }
+    public string? Error { get; set; }
+    public AnalysisEndpoints? Endpoints { get; set; }
 }
 
 public class AnalysisEndpoints
