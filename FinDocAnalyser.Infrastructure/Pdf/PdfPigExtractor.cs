@@ -1,6 +1,7 @@
 ﻿using FinDocAnalyzer.Core.Interfaces;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using System.Text;
 
 namespace FinDocAnalyzer.Infrastructure.Pdf;
@@ -19,15 +20,28 @@ public class PdfPigExtractor : IPdfExtractor
                 // Abre o PDF a partir do array de bytes
                 using (var document = PdfDocument.Open(pdfContent))
                 {
+                    // Adiciona metadados do documento (contexto para IA)
+                    textBuilder.AppendLine("=== DOCUMENTO ===");
+                    textBuilder.AppendLine($"Título: {document.Information.Title ?? "N/A"}");
+                    textBuilder.AppendLine($"Autor: {document.Information.Author ?? "N/A"}");
+                    textBuilder.AppendLine($"Total de Páginas: {document.NumberOfPages}");
+                    textBuilder.AppendLine();
+
                     // Percorre cada página
                     foreach (Page page in document.GetPages())
                     {
-                        // Adiciona separador de página (útil para contexto)
-                        textBuilder.AppendLine($"--- Página {page.Number} ---");
+                        // Cabeçalho da página com contexto estrutural
+                        textBuilder.AppendLine($"--- PÁGINA {page.Number} de {document.NumberOfPages} ---");
+                        textBuilder.AppendLine($"Dimensões: {page.Width:F0}x{page.Height:F0} pontos");
+                        textBuilder.AppendLine();
 
-                        // Extrai o texto da página
-                        var pageText = page.Text;
+                        // ✨ MELHORIA: Usa ContentOrderTextExtractor para ordem de leitura correta
+                        // Mantém a ordem visual correta (especialmente importante em múltiplas colunas)
+                        var pageText = ContentOrderTextExtractor.GetText(page);
                         textBuilder.AppendLine(pageText);
+                        
+                        textBuilder.AppendLine();
+                        textBuilder.AppendLine("--- FIM DA PÁGINA ---");
                         textBuilder.AppendLine(); // Linha em branco entre páginas
                     }
                 }
