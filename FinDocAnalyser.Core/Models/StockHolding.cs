@@ -18,7 +18,6 @@ public class StockHolding
     public string Ticker { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal AveragePrice { get; set; }
-    public decimal TotalInvested { get; set; }
     public decimal CurrentValue { get; set; }
     public decimal? Return { get; set; }  // Nullable - pode ser null
     public decimal? ReturnPercentage { get; set; }  // Nullable
