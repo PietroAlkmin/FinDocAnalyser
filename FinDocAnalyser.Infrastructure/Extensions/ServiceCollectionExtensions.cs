@@ -58,25 +58,17 @@ public static class ServiceCollectionExtensions
 
     private static void ConfigureAiProvider(IServiceCollection services, FinDocAnalyserOptions options)
     {
-        switch (options.AiProvider)
+        services.AddSingleton<IChatClient>(sp =>
         {
-            case AiProvider.OpenAI:
-                services.AddSingleton<IChatClient>(sp =>
-                {
-                    var openAiClient = new OpenAI.OpenAIClient(options.OpenAI.ApiKey);
-                    return openAiClient.AsChatClient(options.OpenAI.Model);
-                });
-                break;
-
-            case AiProvider.AzureOpenAI:
-                throw new NotImplementedException("Azure OpenAI será implementado em breve");
-
-            case AiProvider.Ollama:
-                throw new NotImplementedException("Ollama será implementado em breve");
-
-            default:
-                throw new NotSupportedException($"AI Provider '{options.AiProvider}' não suportado");
-        }
+            // Abordagem exata dos exemplos oficiais da Microsoft
+            var azureOpenAIClient = new Azure.AI.OpenAI.AzureOpenAIClient(
+                new Uri(options.AzureOpenAI.Endpoint),
+                new System.ClientModel.ApiKeyCredential(options.AzureOpenAI.ApiKey));
+            
+            var chatClient = azureOpenAIClient.GetChatClient(options.AzureOpenAI.DeploymentName);
+            
+            return chatClient.AsChatClient();
+        });
     }
 }
 
@@ -85,11 +77,6 @@ public static class ServiceCollectionExtensions
 /// </summary>
 public class FinDocAnalyserOptions
 {
-    /// <summary>
-    /// Provider de IA a ser usado
-    /// </summary>
-    public AiProvider AiProvider { get; set; } = AiProvider.OpenAI;
-
     /// <summary>
     /// Habilita cache de PDFs (SHA256)
     /// </summary>
@@ -111,19 +98,9 @@ public class FinDocAnalyserOptions
     public StorageType StorageType { get; set; } = StorageType.InMemory;
 
     /// <summary>
-    /// Configurações da OpenAI
-    /// </summary>
-    public OpenAIOptions OpenAI { get; set; } = new();
-
-    /// <summary>
     /// Configurações do Azure OpenAI
     /// </summary>
     public AzureOpenAIOptions AzureOpenAI { get; set; } = new();
-
-    /// <summary>
-    /// Configurações do Ollama (local)
-    /// </summary>
-    public OllamaOptions Ollama { get; set; } = new();
 
     /// <summary>
     /// String de conexão do Redis (se StorageType = Redis)
@@ -132,21 +109,15 @@ public class FinDocAnalyserOptions
 
     public void Validate()
     {
-        if (AiProvider == AiProvider.OpenAI && string.IsNullOrEmpty(OpenAI.ApiKey))
-            throw new InvalidOperationException("OpenAI API Key é obrigatória");
-
-        if (AiProvider == AiProvider.AzureOpenAI && string.IsNullOrEmpty(AzureOpenAI.ApiKey))
+        if (string.IsNullOrEmpty(AzureOpenAI.ApiKey))
             throw new InvalidOperationException("Azure OpenAI API Key é obrigatória");
+
+        if (string.IsNullOrEmpty(AzureOpenAI.Endpoint))
+            throw new InvalidOperationException("Azure OpenAI Endpoint é obrigatório");
 
         if (StorageType == StorageType.Redis && string.IsNullOrEmpty(RedisConnectionString))
             throw new InvalidOperationException("Redis connection string é obrigatória");
     }
-}
-
-public class OpenAIOptions
-{
-    public string ApiKey { get; set; } = string.Empty;
-    public string Model { get; set; } = "gpt-4o";
 }
 
 public class AzureOpenAIOptions
@@ -154,19 +125,7 @@ public class AzureOpenAIOptions
     public string ApiKey { get; set; } = string.Empty;
     public string Endpoint { get; set; } = string.Empty;
     public string DeploymentName { get; set; } = "gpt-4o";
-}
-
-public class OllamaOptions
-{
-    public string Endpoint { get; set; } = "http://localhost:11434";
-    public string Model { get; set; } = "llama3.2";
-}
-
-public enum AiProvider
-{
-    OpenAI,
-    AzureOpenAI,
-    Ollama
+    public string ApiVersion { get; set; } = "2024-08-01-preview";
 }
 
 public enum StorageType
