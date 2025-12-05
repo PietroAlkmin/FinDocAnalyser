@@ -23,6 +23,7 @@ public class FixedIncomeAsset
     public decimal? Return { get; set; }
     public decimal? ReturnPercentage { get; set; }
     public string Rate { get; set; } = string.Empty;  // "96% CDI", "IPCA +3.6%"
+    public string Yield { get; set; } = string.Empty;  // Dividend yield ou yield atual, ex: "4.66%"
     public DateTime? MaturityDate { get; set; }  // Nullable
     public DateTime? ApplicationDate { get; set; }  // Nullable
     public decimal Confidence { get; set; }

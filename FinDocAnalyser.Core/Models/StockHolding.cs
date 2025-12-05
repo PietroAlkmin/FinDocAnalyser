@@ -21,6 +21,7 @@ public class StockHolding
     public decimal CurrentValue { get; set; }
     public decimal? Return { get; set; }  // Nullable - pode ser null
     public decimal? ReturnPercentage { get; set; }  // Nullable
+    public string Yield { get; set; } = string.Empty;  // Dividend yield, ex: "4.66%"
     public decimal Confidence { get; set; }
     public string ConfidenceReason { get; set; } = string.Empty;
 }

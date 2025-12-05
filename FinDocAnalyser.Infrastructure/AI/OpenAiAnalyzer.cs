@@ -149,10 +149,10 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""ticker"": string (ex: ""PETR4"", ""AAPL"", ""GOOGL""),
         ""quantity"": number,
         ""averagePrice"": number,
-        ""totalInvested"": number,
         ""currentValue"": number,
         ""return"": number ou null,
         ""returnPercentage"": number ou null,
+        ""yield"": string,
         ""confidence"": number,
         ""confidenceReason"": string
       }
@@ -170,7 +170,8 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""currentValue"": number,
         ""return"": number ou null,
         ""returnPercentage"": number ou null,
-        ""rate"": string (ex: ""110% CDI"", ""5.5% a.a."", ""3.25% coupon""),
+        ""rate"": string,
+        ""yield"": string,
         ""maturityDate"": ""YYYY-MM-DD"" ou null,
         ""applicationDate"": ""YYYY-MM-DD"" ou null,
         ""confidence"": number,
