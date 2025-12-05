@@ -27,21 +27,22 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // CONFIGURA FinDocAnalyser SDK com Microsoft.Extensions.AI
-var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
+var azureApiKey = builder.Configuration["AzureOpenAI:ApiKey"];
+var azureEndpoint = builder.Configuration["AzureOpenAI:Endpoint"];
 
-if (string.IsNullOrEmpty(openAiApiKey))
+if (string.IsNullOrEmpty(azureApiKey) || string.IsNullOrEmpty(azureEndpoint))
 {
     throw new InvalidOperationException(
-        "Chave da API OpenAI não configurada. " +
-        "Adicione 'OpenAI:ApiKey' no appsettings.json ou use User Secrets.");
+        "Azure OpenAI não configurado. " +
+        "Adicione 'AzureOpenAI:ApiKey' e 'AzureOpenAI:Endpoint' no appsettings.json ou use User Secrets.");
 }
 
 builder.Services.AddFinDocAnalyser(options =>
 {
-    // Provider de IA (OpenAI, Azure OpenAI, ou Ollama)
-    options.AiProvider = AiProvider.OpenAI;
-    options.OpenAI.ApiKey = openAiApiKey;
-    options.OpenAI.Model = builder.Configuration["OpenAI:Model"] ?? "gpt-4o";
+    // Azure OpenAI
+    options.AzureOpenAI.ApiKey = azureApiKey;
+    options.AzureOpenAI.Endpoint = azureEndpoint;
+    options.AzureOpenAI.DeploymentName = builder.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o";
 
     // Habilita cache de PDFs (evita reprocessamento)
     options.EnablePdfCache = true;
@@ -90,7 +91,7 @@ app.MapControllers();
 app.Logger.LogInformation("====================================");
 app.Logger.LogInformation("FinDoc Analyzer API iniciada!");
 app.Logger.LogInformation("Framework: .NET 10");
-app.Logger.LogInformation("AI: Microsoft.Extensions.AI + GPT-4o");
+app.Logger.LogInformation("AI: Azure OpenAI (Microsoft.Extensions.AI)");
 app.Logger.LogInformation("Swagger UI: http://localhost:5070/");
 app.Logger.LogInformation("====================================");
 
