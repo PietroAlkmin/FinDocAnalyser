@@ -60,7 +60,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<IChatClient>(sp =>
         {
-            // Abordagem exata dos exemplos oficiais da Microsoft
             var azureOpenAIClient = new Azure.AI.OpenAI.AzureOpenAIClient(
                 new Uri(options.AzureOpenAI.Endpoint),
                 new System.ClientModel.ApiKeyCredential(options.AzureOpenAI.ApiKey));
