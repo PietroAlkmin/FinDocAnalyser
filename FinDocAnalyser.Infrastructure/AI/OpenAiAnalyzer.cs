@@ -275,7 +275,15 @@ REGRAS UNIVERSAIS para extração:
    - Use ponto (.) como separador decimal sempre
    - Para percentuais, use o valor decimal (ex: 42.6 para 42,6%)
 
-3. TICKERS/CÓDIGOS:
+3. DISTINÇÃO CRÍTICA - VALOR INVESTIDO vs VALOR ATUAL:
+   - investedAmount/averagePrice: Custo original do investimento (termos comuns: ""Original Cost"", ""Adjusted Cost"", ""Cost Basis"", ""Custo de Aquisição"", ""Valor Aplicado"", ""Invested"", ""Purchase Price"")
+   - currentValue: Valor de mercado atual (termos comuns: ""Market Value"", ""Current Value"", ""Value"", ""Valor Atual"", ""Posição"", ""Position Value"")
+   - return: Diferença entre currentValue e investedAmount (termos comuns: ""Gain/Loss"", ""Unrealized Gain/Loss"", ""Profit/Loss"", ""Lucro/Prejuízo"", ""Rentabilidade Absoluta"")
+   - returnPercentage: (return / investedAmount) * 100
+   - NUNCA use o mesmo valor para investedAmount e currentValue - são campos DIFERENTES
+   - Se houver apenas um valor disponível, use-o para currentValue e deixe investedAmount como null
+
+4. TICKERS/CÓDIGOS:
    - Brasil: tickers terminam em números (PETR4, VALE3, BOVA11)
    - EUA: sem sufixos numéricos (AAPL, GOOGL, TSLA)
    - Offshore: pode ter variações (ADRs, etc)
