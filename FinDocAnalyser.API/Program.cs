@@ -15,7 +15,7 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "FinDoc Analyzer API",
-        Version = "v1.0 - .NET 10 + Microsoft.Extensions.AI",
+        Version = "v1.0",
         Description = "API para análise de relatórios financeiros em PDF usando IA (GPT-4o)\n\n" +
                      "✅ Suporte universal para qualquer tipo de relatório (Brasileiro, Offshore, Internacional)\n" +
                      "✅ Cache automático de PDFs (SHA256)\n" +
@@ -79,7 +79,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "FinDoc Analyzer API v1");
-        options.RoutePrefix = string.Empty;
+        options.RoutePrefix = string.Empty; // Swagger na raiz
         options.DocumentTitle = "FinDoc Analyzer - API de Análise de Relatórios Financeiros";
     });
 }
@@ -92,7 +92,9 @@ app.Logger.LogInformation("====================================");
 app.Logger.LogInformation("FinDoc Analyzer API iniciada!");
 app.Logger.LogInformation("Framework: .NET 10");
 app.Logger.LogInformation("AI: Azure OpenAI (Microsoft.Extensions.AI)");
-app.Logger.LogInformation("Swagger UI: http://localhost:5070/");
+app.Logger.LogInformation("====================================");
+app.Logger.LogInformation("📄 Swagger UI: http://localhost:5070/");
+app.Logger.LogInformation("📋 OpenAPI Spec: http://localhost:5070/swagger/v1/swagger.json");
 app.Logger.LogInformation("====================================");
 
 app.Run();

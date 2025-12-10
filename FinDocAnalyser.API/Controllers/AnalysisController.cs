@@ -198,6 +198,138 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// Obtém a renda variável
+    /// </summary>
+    [HttpGet("{id}/variable-income")]
+    [ProducesResponseType(typeof(VariableIncomePortfolio), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetVariableIncome(Guid id)
+    {
+        var result = await _orchestrator.GetVariableIncomeAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtém os ativos alternativos
+    /// </summary>
+    [HttpGet("{id}/alternative-assets")]
+    [ProducesResponseType(typeof(AlternativeAssetsPortfolio), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAlternativeAssets(Guid id)
+    {
+        var result = await _orchestrator.GetAlternativeAssetsAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtém as posições em cash
+    /// </summary>
+    [HttpGet("{id}/cash")]
+    [ProducesResponseType(typeof(CashPortfolio), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCash(Guid id)
+    {
+        var result = await _orchestrator.GetCashAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtém informações de auditoria completas da análise (incluindo resposta bruta da IA)
+    /// </summary>
+    [HttpGet("{id}/audit")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> GetAudit(Guid id)
+    {
+        var result = await _orchestrator.GetAnalysisAsync(id);
+        
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(new
+        {
+            analysisId = result.AnalysisId,
+            createdAt = result.CreatedAt,
+            expiresAt = result.ExpiresAt,
+            fileName = result.FileName,
+            fileSizeBytes = result.FileSizeBytes,
+            fileHash = result.FileHash,
+            audit = result.Audit,
+            metadata = result.Metadata,
+            extractedTextPreview = result.ExtractedText?.Length > 500 
+                ? result.ExtractedText.Substring(0, 500) + "..." 
+                : result.ExtractedText,
+            extractedTextLength = result.ExtractedText?.Length ?? 0,
+            rawAiResponse = result.Metadata?.RawAiResponse,
+            totalAssets = new
+            {
+                variableIncome = result.VariableIncome?.Assets?.Count ?? 0,
+                fixedIncome = result.FixedIncome?.Assets?.Count ?? 0,
+                alternativeAssets = result.AlternativeAssets?.Assets?.Count ?? 0,
+                cashPositions = result.Cash?.Positions?.Count ?? 0
+            }
+        });
+    }
+
+    /// <summary>
+    /// Obtém o texto extraído do PDF
+    /// </summary>
+    [HttpGet("{id}/extracted-text")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetExtractedText(Guid id)
+    {
+        var result = await _orchestrator.GetExtractedTextAsync(id);
+
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Análise não encontrada",
+                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+            });
+        }
+
+        return Ok(new { extractedText = result });
+    }
+
+    /// <summary>
     /// Obtém os metadados completos da análise (incluindo custos, tokens, cache info)
     /// </summary>
     [HttpGet("{id}/metadata")]
@@ -278,7 +410,11 @@ public class AnalysisController : ControllerBase
                     Total = Url.Action(nameof(GetTotal), new { id = analysisId })!,
                     Classification = Url.Action(nameof(GetClassification), new { id = analysisId })!,
                     Stocks = Url.Action(nameof(GetStocks), new { id = analysisId })!,
-                    FixedIncome = Url.Action(nameof(GetFixedIncome), new { id = analysisId })!
+                    FixedIncome = Url.Action(nameof(GetFixedIncome), new { id = analysisId })!,
+                    VariableIncome = Url.Action(nameof(GetVariableIncome), new { id = analysisId })!,
+                    AlternativeAssets = Url.Action(nameof(GetAlternativeAssets), new { id = analysisId })!,
+                    Cash = Url.Action(nameof(GetCash), new { id = analysisId })!,
+                    ExtractedText = Url.Action(nameof(GetExtractedText), new { id = analysisId })!
                 }
             };
         }
@@ -330,6 +466,10 @@ public class AnalysisEndpoints
     public string Classification { get; set; } = string.Empty;
     public string Stocks { get; set; } = string.Empty;
     public string FixedIncome { get; set; } = string.Empty;
+    public string VariableIncome { get; set; } = string.Empty;
+    public string AlternativeAssets { get; set; } = string.Empty;
+    public string Cash { get; set; } = string.Empty;
+    public string ExtractedText { get; set; } = string.Empty;
 }
 
 public class ErrorResponse
