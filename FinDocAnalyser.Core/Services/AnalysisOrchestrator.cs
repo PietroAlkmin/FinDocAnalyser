@@ -82,6 +82,7 @@ public class AnalysisOrchestrator
             analysisResult.FileName = fileName;
             analysisResult.FileSizeBytes = pdfContent.Length;
             analysisResult.FileHash = fileHash ?? string.Empty;
+            analysisResult.ExtractedText = extractedText;
             analysisResult.Audit.ProcessingDuration = stopwatch.Elapsed;
 
             // 6. CACHE: Salva no cache de PDFs
@@ -140,7 +141,9 @@ public class AnalysisOrchestrator
     public async Task<StockPortfolio?> GetStocksAsync(Guid analysisId)
     {
         var result = await _resultStore.GetAsync(analysisId);
+#pragma warning disable CS0618 // Type or member is obsolete
         return result?.Stocks;
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     /// <summary>
@@ -150,5 +153,41 @@ public class AnalysisOrchestrator
     {
         var result = await _resultStore.GetAsync(analysisId);
         return result?.FixedIncome;
+    }
+
+    /// <summary>
+    /// Recupera apenas renda variável
+    /// </summary>
+    public async Task<VariableIncomePortfolio?> GetVariableIncomeAsync(Guid analysisId)
+    {
+        var result = await _resultStore.GetAsync(analysisId);
+        return result?.VariableIncome;
+    }
+
+    /// <summary>
+    /// Recupera apenas ativos alternativos
+    /// </summary>
+    public async Task<AlternativeAssetsPortfolio?> GetAlternativeAssetsAsync(Guid analysisId)
+    {
+        var result = await _resultStore.GetAsync(analysisId);
+        return result?.AlternativeAssets;
+    }
+
+    /// <summary>
+    /// Recupera apenas posições em cash
+    /// </summary>
+    public async Task<CashPortfolio?> GetCashAsync(Guid analysisId)
+    {
+        var result = await _resultStore.GetAsync(analysisId);
+        return result?.Cash;
+    }
+
+    /// <summary>
+    /// Recupera apenas o texto extraído do PDF
+    /// </summary>
+    public async Task<string?> GetExtractedTextAsync(Guid analysisId)
+    {
+        var result = await _resultStore.GetAsync(analysisId);
+        return result?.ExtractedText;
     }
 }
