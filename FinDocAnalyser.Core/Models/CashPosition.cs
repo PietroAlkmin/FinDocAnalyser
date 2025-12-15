@@ -11,7 +11,7 @@ namespace FinDocAnalyzer.Core.Models;
 /// </summary>
 public class CashPortfolio
 {
-    public decimal TotalBalance { get; set; }
+    public decimal? TotalBalance { get; set; }
     public string Currency { get; set; } = "BRL";
     public List<CashPosition> Positions { get; set; } = new();
 }
