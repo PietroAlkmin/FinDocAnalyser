@@ -12,52 +12,52 @@ public class AnalysisResult
     public DateTime CreatedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
 
-    // Tracking de usuário (multi-tenant)
+    // User tracking (multi-tenant)
     public string? UserId { get; set; } = string.Empty;
     public string? UserEmail { get; set; }
     public string? ClientId { get; set; }
 
-    // Metadados do arquivo
+    // File metadata
     public string FileName { get; set; } = string.Empty;
     public long FileSizeBytes { get; set; }
-    public string FileHash { get; set; } = string.Empty; // SHA256 para cache
-    public string ExtractedText { get; set; } = string.Empty; // Texto extraído do PDF
+    public string FileHash { get; set; } = string.Empty; // SHA256 for cache
+    public string ExtractedText { get; set; } = string.Empty; // Extracted text from PDF
 
-    // Audit trail (LGPD compliance)
+    // Audit trail (GDPR compliance)
     public AuditInfo Audit { get; set; } = new();
 
-    // Dados extraídos
+    // Extracted data
     public TotalInvested? Total { get; set; } = new();
     public AssetClassification? Classification { get; set; } = new();
     
-    // Portfolios por categoria
+    // Portfolios by category
     public VariableIncomePortfolio? VariableIncome { get; set; } = new();
     public FixedIncomePortfolio? FixedIncome { get; set; } = new();
     public AlternativeAssetsPortfolio? AlternativeAssets { get; set; } = new();
     public CashPortfolio? Cash { get; set; } = new();
     
-    // DEPRECATED: Manter para compatibilidade retroativa
+    // DEPRECATED: Keep for backward compatibility
     [Obsolete("Use VariableIncome instead")]
     public StockPortfolio? Stocks { get; set; } = new();
 
-    // Metadados da análise
+    // Analysis metadata
     public AnalysisMetadata? Metadata { get; set; } = new();
 }
 
 /// <summary>
-/// Informações de auditoria para compliance LGPD
+/// Audit information for GDPR compliance
 /// </summary>
 public class AuditInfo
 {
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
-    public string? ProcessedBy { get; set; } // Sistema/operador que processou
+    public string? ProcessedBy { get; set; } // System/operator that processed
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public TimeSpan ProcessingDuration { get; set; }
 }
 
 /// <summary>
-/// Metadados sobre a análise realizada
+/// Metadata about the performed analysis
 /// </summary>
 public class AnalysisMetadata
 {
@@ -77,7 +77,7 @@ public class AnalysisMetadata
 }
 
 /// <summary>
-/// Rastreamento do processo de pensamento da IA
+/// Tracking of AI reasoning process
 /// </summary>
 public class AiReasoning
 {

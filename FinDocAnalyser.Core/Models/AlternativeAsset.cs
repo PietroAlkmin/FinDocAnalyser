@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace FinDocAnalyzer.Core.Models;
 
 /// <summary>
-/// Portfolio de Ativos Alternativos (REITs, FIIs, Private Equity, Hedge Funds, Crypto, Commodities)
+/// Alternative Assets Portfolio (REITs, FIIs, Private Equity, Hedge Funds, Crypto, Commodities)
 /// </summary>
 public class AlternativeAssetsPortfolio
 {
@@ -17,114 +17,114 @@ public class AlternativeAssetsPortfolio
 }
 
 /// <summary>
-/// Ativo Alternativo individual - modelo flexível para diversos tipos de ativos não convencionais
+/// Individual Alternative Asset - flexible model for various types of unconventional assets
 /// </summary>
 public class AlternativeAsset
 {
     /// <summary>
-    /// Nome do ativo/fundo/investimento
+    /// Asset/fund/investment name
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Tipo/categoria do ativo (ex: "REIT", "FII", "Private Equity", "Hedge Fund", "Crypto", "Commodity", "Structured Product", "Art", "Venture Capital", etc)
-    /// Campo FLEXÍVEL - aceita qualquer classificação
+    /// Asset type/category (e.g.: "REIT", "FII", "Private Equity", "Hedge Fund", "Crypto", "Commodity", "Structured Product", "Art", "Venture Capital", etc)
+    /// FLEXIBLE field - accepts any classification
     /// </summary>
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
-    /// Símbolo/ticker/identificador se houver (ex: "BTC-USD", "O", "HGLG11")
-    /// OPCIONAL - nem todos ativos alternativos têm ticker
+    /// Symbol/ticker/identifier if available (e.g.: "BTC-USD", "O", "HGLG11")
+    /// OPTIONAL - not all alternative assets have a ticker
     /// </summary>
     public string? Symbol { get; set; }
 
     /// <summary>
-    /// Emissor/gestor/administrador do fundo ou ativo
-    /// OPCIONAL - pode não estar disponível
+    /// Fund or asset issuer/manager/administrator
+    /// OPTIONAL - may not be available
     /// </summary>
     public string? Issuer { get; set; }
 
     /// <summary>
-    /// Descrição adicional ou estratégia (para fundos complexos)
-    /// OPCIONAL - campo livre para informações extras
+    /// Additional description or strategy (for complex funds)
+    /// OPTIONAL - free field for extra information
     /// </summary>
     public string? Description { get; set; }
 
     /// <summary>
-    /// Quantidade de cotas/unidades/tokens
-    /// OPCIONAL - nem todos ativos têm unidades quantificáveis
+    /// Quantity of units/shares/tokens
+    /// OPTIONAL - not all assets have quantifiable units
     /// </summary>
     public decimal? Quantity { get; set; }
 
     /// <summary>
-    /// Preço/valor unitário (quando aplicável)
-    /// OPCIONAL - para ativos com preço por unidade
+    /// Price/unit value (when applicable)
+    /// OPTIONAL - for assets with price per unit
     /// </summary>
     public decimal? UnitPrice { get; set; }
 
     /// <summary>
-    /// Valor investido/capital comprometido
-    /// Principal campo financeiro - sempre tentar extrair
+    /// Invested amount/committed capital
+    /// Main financial field - always try to extract
     /// </summary>
     public decimal InvestedAmount { get; set; }
 
     /// <summary>
-    /// Valor atual estimado/NAV/market value
+    /// Estimated current value/NAV/market value
     /// </summary>
     public decimal CurrentValue { get; set; }
 
     /// <summary>
-    /// Retorno absoluto (lucro/prejuízo)
+    /// Absolute return (profit/loss)
     /// </summary>
     public decimal? Return { get; set; }
 
     /// <summary>
-    /// Retorno percentual
+    /// Percentage return
     /// </summary>
     public decimal? ReturnPercentage { get; set; }
 
     /// <summary>
-    /// Yield/rendimento/distribuições (formato livre: "5.2%", "$120/month", etc)
-    /// OPCIONAL - para ativos que geram renda periódica
+    /// Yield/income/distributions (free format: "5.2%", "$120/month", etc)
+    /// OPTIONAL - for assets that generate periodic income
     /// </summary>
     public string? Yield { get; set; }
 
     /// <summary>
-    /// Taxa de administração ou management fee
-    /// OPCIONAL - importante para fundos
+    /// Administration fee or management fee
+    /// OPTIONAL - important for funds
     /// </summary>
     public string? ManagementFee { get; set; }
 
     /// <summary>
-    /// Período de lock-up ou carencia
-    /// OPCIONAL - para investimentos com restrição de liquidez
+    /// Lock-up or waiting period
+    /// OPTIONAL - for investments with liquidity restrictions
     /// </summary>
     public string? LockupPeriod { get; set; }
 
     /// <summary>
-    /// Data de início/subscrição/aquisição
+    /// Inception/subscription/acquisition date
     /// </summary>
     public DateTime? InceptionDate { get; set; }
 
     /// <summary>
-    /// Data de vencimento/exit/liquidação (se aplicável)
+    /// Maturity/exit/liquidation date (if applicable)
     /// </summary>
     public DateTime? MaturityDate { get; set; }
 
     /// <summary>
-    /// Dados adicionais em formato chave-valor para flexibilidade máxima
-    /// Permite capturar campos específicos de cada tipo de ativo
-    /// Ex: {"Vintage": "2023", "Geography": "Global", "Strategy": "Long/Short Equity"}
+    /// Additional data in key-value format for maximum flexibility
+    /// Allows capturing specific fields for each asset type
+    /// E.g.: {"Vintage": "2023", "Geography": "Global", "Strategy": "Long/Short Equity"}
     /// </summary>
     public Dictionary<string, string>? AdditionalData { get; set; }
 
     /// <summary>
-    /// Confiança da extração (0.0 a 1.0)
+    /// Extraction confidence (0.0 to 1.0)
     /// </summary>
     public decimal Confidence { get; set; }
 
     /// <summary>
-    /// Explicação do nível de confiança
+    /// Confidence level explanation
     /// </summary>
     public string ConfidenceReason { get; set; } = string.Empty;
 }

@@ -11,12 +11,12 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace FinDocAnalyzer.Extensions;
 
 /// <summary>
-/// Extension methods para configurar o FinDocAnalyser SDK
+/// Extension methods to configure FinDocAnalyser SDK
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adiciona serviços do FinDocAnalyser com configuração padrão
+    /// Add FinDocAnalyser services with default configuration
     /// </summary>
     public static IServiceCollection AddFinDocAnalyser(
         this IServiceCollection services,
@@ -25,21 +25,21 @@ public static class ServiceCollectionExtensions
         var options = new FinDocAnalyserOptions();
         configure(options);
 
-        // Valida configuração
+        // Validate configuration
         options.Validate();
 
-        // Registra serviços core
+        // Register core services
         services.AddScoped<AnalysisOrchestrator>();
         services.AddScoped<IPdfExtractor, PdfPigExtractor>();
         services.AddScoped<IAiAnalyzer, AiDocumentAnalyzer>();
 
-        // Cache de PDFs
+        // PDF cache
         if (options.EnablePdfCache)
         {
             services.TryAddSingleton<IPdfCache, InMemoryPdfCache>();
         }
 
-        // Storage (padrão: InMemory)
+        // Storage (default: InMemory)
         if (options.StorageType == StorageType.InMemory)
         {
             services.TryAddSingleton<IResultStore, InMemoryResultStore>();
@@ -72,50 +72,50 @@ public static class ServiceCollectionExtensions
 }
 
 /// <summary>
-/// Opções de configuração do FinDocAnalyser
+/// FinDocAnalyser configuration options
 /// </summary>
 public class FinDocAnalyserOptions
 {
     /// <summary>
-    /// Habilita cache de PDFs (SHA256)
+    /// Enable PDF caching (SHA256)
     /// </summary>
     public bool EnablePdfCache { get; set; } = true;
 
     /// <summary>
-    /// Habilita cache de respostas da IA
+    /// Enable AI response caching
     /// </summary>
     public bool EnableAiCache { get; set; } = false;
 
     /// <summary>
-    /// Habilita telemetria (OpenTelemetry)
+    /// Enable telemetry (OpenTelemetry)
     /// </summary>
     public bool EnableTelemetry { get; set; } = false;
 
     /// <summary>
-    /// Tipo de storage para resultados
+    /// Storage type for results
     /// </summary>
     public StorageType StorageType { get; set; } = StorageType.InMemory;
 
     /// <summary>
-    /// Configurações do Azure OpenAI
+    /// Azure OpenAI configuration
     /// </summary>
     public AzureOpenAIOptions AzureOpenAI { get; set; } = new();
 
     /// <summary>
-    /// String de conexão do Redis (se StorageType = Redis)
+    /// Redis connection string (if StorageType = Redis)
     /// </summary>
     public string? RedisConnectionString { get; set; }
 
     public void Validate()
     {
         if (string.IsNullOrEmpty(AzureOpenAI.ApiKey))
-            throw new InvalidOperationException("Azure OpenAI API Key é obrigatória");
+            throw new InvalidOperationException("Azure OpenAI API Key is required");
 
         if (string.IsNullOrEmpty(AzureOpenAI.Endpoint))
-            throw new InvalidOperationException("Azure OpenAI Endpoint é obrigatório");
+            throw new InvalidOperationException("Azure OpenAI Endpoint is required");
 
         if (StorageType == StorageType.Redis && string.IsNullOrEmpty(RedisConnectionString))
-            throw new InvalidOperationException("Redis connection string é obrigatória");
+            throw new InvalidOperationException("Redis connection string is required");
     }
 }
 

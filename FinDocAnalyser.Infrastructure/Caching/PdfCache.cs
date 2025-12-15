@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 namespace FinDocAnalyzer.Infrastructure.Caching;
 
 /// <summary>
-/// Cache em memória para PDFs usando SHA256
+/// In-memory cache for PDFs using SHA256
 /// </summary>
 public class InMemoryPdfCache : IPdfCache
 {
@@ -15,7 +15,7 @@ public class InMemoryPdfCache : IPdfCache
 
     public InMemoryPdfCache()
     {
-        // Limpa cache expirado a cada 10 minutos
+        // Clean expired cache every 10 minutes
         _cleanupTimer = new Timer(
             callback: _ => CleanupExpired(),
             state: null,
@@ -37,12 +37,12 @@ public class InMemoryPdfCache : IPdfCache
         {
             if (entry.ExpiresAt > DateTime.UtcNow)
             {
-                // Marca como vindo do cache
+                // Mark as coming from cache
                 entry.Result.Metadata.FromCache = true;
                 return Task.FromResult<AnalysisResult?>(entry.Result);
             }
 
-            // Expirou - remove
+            // Expired - remove
             _cache.TryRemove(fileHash, out _);
         }
 

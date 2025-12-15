@@ -3,32 +3,32 @@ using FinDocAnalyzer.Core.Models;
 namespace FinDocAnalyzer.Core.Interfaces;
 
 /// <summary>
-/// Cache para evitar reprocessamento de PDFs idênticos
+/// Cache to prevent reprocessing of identical PDFs
 /// </summary>
 public interface IPdfCache
 {
     /// <summary>
-    /// Calcula hash SHA256 do conteúdo do PDF
+    /// Compute SHA256 hash of PDF content
     /// </summary>
     string ComputeHash(byte[] pdfContent);
 
     /// <summary>
-    /// Verifica se existe análise em cache para este hash
+    /// Check if analysis exists in cache for this hash
     /// </summary>
     Task<AnalysisResult?> GetCachedAnalysisAsync(string fileHash);
 
     /// <summary>
-    /// Armazena análise no cache
+    /// Store analysis in cache
     /// </summary>
     Task SetCachedAnalysisAsync(string fileHash, AnalysisResult result, TimeSpan expiration);
 
     /// <summary>
-    /// Remove análise do cache
+    /// Remove analysis from cache
     /// </summary>
     Task RemoveCachedAnalysisAsync(string fileHash);
 
     /// <summary>
-    /// Limpa todo o cache
+    /// Clear entire cache
     /// </summary>
     Task ClearCacheAsync();
 }

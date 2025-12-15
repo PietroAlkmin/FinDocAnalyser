@@ -2,13 +2,13 @@ using FinDocAnalyzer.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CONFIGURAR PORTAS FIXAS
+// CONFIGURE FIXED PORTS
 builder.WebHost.UseUrls("http://localhost:5070", "https://localhost:7070");
 
-// CONFIGURAÇÃO DE SERVIÇOS
+// SERVICE CONFIGURATION
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI com suporte para upload de arquivos
+// Swagger/OpenAPI with file upload support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -16,25 +16,25 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "FinDoc Analyzer API",
         Version = "v1.0",
-        Description = "API para análise de relatórios financeiros em PDF usando IA (GPT-4o)\n\n" +
-                     "✅ Suporte universal para qualquer tipo de relatório (Brasileiro, Offshore, Internacional)\n" +
-                     "✅ Cache automático de PDFs (SHA256)\n" +
-                     "✅ Tracking de usuários e audit logs (LGPD compliant)\n" +
-                     "✅ Metadados de custos e tokens da IA"
+        Description = "API for analyzing financial PDF reports using AI (GPT-4o)\n\n" +
+                     "✅ Universal support for any report type (Brazilian, Offshore, International)\n" +
+                     "✅ Automatic PDF caching (SHA256)\n" +
+                     "✅ User tracking and audit logs (GDPR compliant)\n" +
+                     "✅ AI cost and token metadata"
     });
 
     options.OperationFilter<FileUploadOperationFilter>();
 });
 
-// CONFIGURA FinDocAnalyser SDK com Microsoft.Extensions.AI
+// CONFIGURE FinDocAnalyser SDK with Microsoft.Extensions.AI
 var azureApiKey = builder.Configuration["AzureOpenAI:ApiKey"];
 var azureEndpoint = builder.Configuration["AzureOpenAI:Endpoint"];
 
 if (string.IsNullOrEmpty(azureApiKey) || string.IsNullOrEmpty(azureEndpoint))
 {
     throw new InvalidOperationException(
-        "Azure OpenAI não configurado. " +
-        "Adicione 'AzureOpenAI:ApiKey' e 'AzureOpenAI:Endpoint' no appsettings.json ou use User Secrets.");
+        "Azure OpenAI not configured. " +
+        "Add 'AzureOpenAI:ApiKey' and 'AzureOpenAI:Endpoint' to appsettings.json or use User Secrets.");
 }
 
 builder.Services.AddFinDocAnalyser(options =>
@@ -44,13 +44,13 @@ builder.Services.AddFinDocAnalyser(options =>
     options.AzureOpenAI.Endpoint = azureEndpoint;
     options.AzureOpenAI.DeploymentName = builder.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o";
 
-    // Habilita cache de PDFs (evita reprocessamento)
+    // Enable PDF caching (prevents reprocessing)
     options.EnablePdfCache = true;
 
-    // Storage (InMemory para desenvolvimento)
+    // Storage (InMemory for development)
     options.StorageType = StorageType.InMemory;
 
-    // Telemetria (desabilitado por padrão)
+    // Telemetry (disabled by default)
     options.EnableTelemetry = false;
 });
 
@@ -72,15 +72,15 @@ builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 var app = builder.Build();
 
-// CONFIGURAÇÃO DO PIPELINE HTTP
+// HTTP PIPELINE CONFIGURATION
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "FinDoc Analyzer API v1");
-        options.RoutePrefix = string.Empty; // Swagger na raiz
-        options.DocumentTitle = "FinDoc Analyzer - API de Análise de Relatórios Financeiros";
+        options.RoutePrefix = string.Empty; // Swagger at root
+        options.DocumentTitle = "FinDoc Analyzer - Financial Report Analysis API";
     });
 }
 
@@ -99,7 +99,7 @@ app.Logger.LogInformation("====================================");
 
 app.Run();
 
-// FILTRO PARA UPLOAD DE ARQUIVOS NO SWAGGER
+// FILTER FOR FILE UPLOAD IN SWAGGER
 public class FileUploadOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOperationFilter
 {
     public void Apply(Microsoft.OpenApi.Models.OpenApiOperation operation, Swashbuckle.AspNetCore.SwaggerGen.OperationFilterContext context)
@@ -128,17 +128,17 @@ public class FileUploadOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOper
                             {
                                 Type = "string",
                                 Format = "binary",
-                                Description = "Arquivo PDF do relatório financeiro (máx 50MB)"
+                                Description = "Financial report PDF file (max 50MB)"
                             },
                             ["userId"] = new Microsoft.OpenApi.Models.OpenApiSchema
                             {
                                 Type = "string",
-                                Description = "ID do usuário (opcional - para tracking multi-tenant)"
+                                Description = "User ID (optional - for multi-tenant tracking)"
                             },
                             ["clientId"] = new Microsoft.OpenApi.Models.OpenApiSchema
                             {
                                 Type = "string",
-                                Description = "ID do cliente (opcional - para tracking multi-tenant)"
+                                Description = "Client ID (optional - for multi-tenant tracking)"
                             }
                         },
                         Required = new HashSet<string> { "file" }

@@ -11,60 +11,60 @@ public class PdfPigExtractor : IPdfExtractor
 {
     public async Task<string> ExtractTextAsync(byte[] pdfContent)
     {
-        // Task.Run para não bloquear a thread (PdfPig é síncrono)
+        // Task.Run to not block the thread (PdfPig is synchronous)
         return await Task.Run(() =>
         {
             try
             {
                 var textBuilder = new StringBuilder();
 
-                // Abre o PDF a partir do array de bytes
+                // Open PDF from byte array
                 using (var document = PdfDocument.Open(pdfContent))
                 {
-                    // Adiciona metadados do documento (contexto para IA)
-                    textBuilder.AppendLine("=== DOCUMENTO ===");
-                    textBuilder.AppendLine($"Título: {document.Information.Title ?? "N/A"}");
-                    textBuilder.AppendLine($"Autor: {document.Information.Author ?? "N/A"}");
-                    textBuilder.AppendLine($"Total de Páginas: {document.NumberOfPages}");
+                    // Add document metadata (context for AI)
+                    textBuilder.AppendLine("=== DOCUMENT ===");
+                    textBuilder.AppendLine($"Title: {document.Information.Title ?? "N/A"}");
+                    textBuilder.AppendLine($"Author: {document.Information.Author ?? "N/A"}");
+                    textBuilder.AppendLine($"Total Pages: {document.NumberOfPages}");
                     textBuilder.AppendLine();
 
-                    // Percorre cada página
+                    // Iterate through each page
                     foreach (Page page in document.GetPages())
                     {
-                        // Cabeçalho da página com contexto estrutural
-                        textBuilder.AppendLine($"--- PÁGINA {page.Number} de {document.NumberOfPages} ---");
-                        textBuilder.AppendLine($"Dimensões: {page.Width:F0}x{page.Height:F0} pontos");
+                        // Page header with structural context
+                        textBuilder.AppendLine($"--- PAGE {page.Number} of {document.NumberOfPages} ---");
+                        textBuilder.AppendLine($"Dimensions: {page.Width:F0}x{page.Height:F0} points");
                         textBuilder.AppendLine();
 
-                        // ✨ MELHORIA: Extrai texto preservando estrutura tabular
+                        // ✨ IMPROVEMENT: Extract text preserving tabular structure
                         var pageText = ExtractPageWithTableDetection(page);
                         textBuilder.AppendLine(pageText);
                         
                         textBuilder.AppendLine();
-                        textBuilder.AppendLine("--- FIM DA PÁGINA ---");
-                        textBuilder.AppendLine(); // Linha em branco entre páginas
+                        textBuilder.AppendLine("--- END OF PAGE ---");
+                        textBuilder.AppendLine(); // Blank line between pages
                     }
                 }
 
                 var extractedText = textBuilder.ToString();
 
-                // Validação básica
+                // Basic validation
                 if (string.IsNullOrWhiteSpace(extractedText))
                 {
-                    throw new InvalidOperationException("Nenhum texto foi extraído do PDF. O arquivo pode estar vazio ou ser apenas imagens.");
+                    throw new InvalidOperationException("No text was extracted from PDF. The file may be empty or contain only images.");
                 }
 
                 return extractedText;
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Erro ao extrair texto do PDF: {ex.Message}", ex);
+                throw new InvalidOperationException($"Error extracting text from PDF: {ex.Message}", ex);
             }
         });
     }
 
     /// <summary>
-    /// Extrai texto da página com detecção e preservação de estruturas tabulares
+    /// Extract text from page with table detection and preservation of tabular structures
     /// </summary>
     private string ExtractPageWithTableDetection(Page page)
     {
@@ -80,10 +80,10 @@ public class PdfPigExtractor : IPdfExtractor
 
         foreach (var word in words)
         {
-            // Se mudou de linha (Y diferente)
+            // If line changed (different Y)
             if (Math.Abs(word.BoundingBox.Bottom - currentY) > lineThreshold)
             {
-                // Processa linha anterior
+                // Process previous line
                 if (currentLine.Any())
                 {
                     AppendLine(textBuilder, currentLine);
@@ -95,7 +95,7 @@ public class PdfPigExtractor : IPdfExtractor
             currentLine.Add(word);
         }
 
-        // Processa última linha
+        // Process last line
         if (currentLine.Any())
         {
             AppendLine(textBuilder, currentLine);
@@ -105,16 +105,16 @@ public class PdfPigExtractor : IPdfExtractor
     }
 
     /// <summary>
-    /// Adiciona uma linha de palavras preservando alinhamento horizontal
+    /// Add a line of words preserving horizontal alignment
     /// </summary>
     private void AppendLine(StringBuilder builder, List<Word> words)
     {
         if (!words.Any()) return;
 
-        // Ordena palavras por posição X (esquerda para direita)
+        // Sort words by X position (left to right)
         var sortedWords = words.OrderBy(w => w.BoundingBox.Left).ToList();
         
-        // Detecta se é provável linha de tabela (múltiplos números alinhados)
+        // Detect if it's likely a table row (multiple aligned numbers)
         bool isTableRow = DetectTableRow(sortedWords);
 
         if (isTableRow)
@@ -127,15 +127,15 @@ public class PdfPigExtractor : IPdfExtractor
         {
             double gap = word.BoundingBox.Left - lastX;
             
-            // Se há gap significativo (>30 pixels), adiciona espaçamento proporcional
+            // If there's significant gap (>30 pixels), add proportional spacing
             if (gap > 30 && lastX > 0)
             {
-                int spaces = Math.Min((int)(gap / 10), 10); // Max 10 espaços
+                int spaces = Math.Min((int)(gap / 10), 10); // Max 10 spaces
                 builder.Append(new string(' ', spaces));
             }
             else if (lastX > 0)
             {
-                builder.Append(' '); // Espaço normal entre palavras
+                builder.Append(' '); // Normal space between words
             }
 
             builder.Append(word.Text);
@@ -151,13 +151,13 @@ public class PdfPigExtractor : IPdfExtractor
     }
 
     /// <summary>
-    /// Detecta se uma linha é provável parte de tabela (muitos números, alinhamento)
+    /// Detect if a line is likely part of a table (many numbers, alignment)
     /// </summary>
     private bool DetectTableRow(List<Word> words)
     {
         if (words.Count < 3) return false;
 
-        // Conta quantos elementos são numéricos ou valores monetários
+        // Count how many elements are numeric or monetary values
         int numericCount = 0;
         int totalWords = words.Count;
 
@@ -165,7 +165,7 @@ public class PdfPigExtractor : IPdfExtractor
         {
             string text = word.Text.Trim();
             
-            // Remove caracteres comuns em valores financeiros
+            // Remove common characters in financial values
             string cleanText = text.Replace(",", "").Replace("$", "").Replace("%", "")
                                    .Replace("(", "").Replace(")", "").Replace("-", "");
 
@@ -175,17 +175,17 @@ public class PdfPigExtractor : IPdfExtractor
             }
         }
 
-        // Se >40% dos elementos são numéricos, provavelmente é linha de tabela
+        // If >40% of elements are numeric, it's likely a table row
         return (double)numericCount / totalWords > 0.4;
     }
 
     public bool IsValidPdf(byte[] content)
     {
-        // Validações básicas
+        // Basic validations
         if (content == null || content.Length < 5)
             return false;
 
-        // Todo PDF válido começa com "%PDF-" (bytes: 0x25 0x50 0x44 0x46 0x2D)
+        // Every valid PDF starts with "%PDF-" (bytes: 0x25 0x50 0x44 0x46 0x2D)
         return content[0] == 0x25 &&  // %
                content[1] == 0x50 &&  // P
                content[2] == 0x44 &&  // D

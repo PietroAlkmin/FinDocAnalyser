@@ -30,7 +30,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Processa um PDF e retorna o ID da análise (com suporte a cache)
+    /// Process a PDF and return the analysis ID (with cache support)
     /// </summary>
     public async Task<Guid> ProcessPdfAsync(byte[] pdfContent, string fileName)
     {
@@ -38,13 +38,13 @@ public class AnalysisOrchestrator
         
         try
         {
-            // 1. VALIDAÇÃO: Verifica se é um PDF válido
+            // 1. VALIDATION: Check if it's a valid PDF
             if (!_pdfExtractor.IsValidPdf(pdfContent))
             {
-                throw new InvalidOperationException("O arquivo enviado não é um PDF válido.");
+                throw new InvalidOperationException("The uploaded file is not a valid PDF.");
             }
 
-            // 2. CACHE: Verifica se já processamos este PDF (SHA256)
+            // 2. CACHE: Check if we've already processed this PDF (SHA256)
             string? fileHash = null;
             if (_pdfCache != null)
             {
@@ -53,64 +53,64 @@ public class AnalysisOrchestrator
                 
                 if (cachedResult != null)
                 {
-                    // Gera novo ID mas mantém dados
+                    // Generate new ID but keep data
                     cachedResult.AnalysisId = Guid.NewGuid();
                     cachedResult.CreatedAt = DateTime.UtcNow;
                     cachedResult.ExpiresAt = DateTime.UtcNow.AddMinutes(30);
 
-                    // Armazena resultado (novo ID)
+                    // Store result (new ID)
                     await _resultStore.StoreAsync(cachedResult, TimeSpan.FromMinutes(30));
 
                     return cachedResult.AnalysisId;
                 }
             }
 
-            // 3. EXTRAÇÃO: Extrai texto do PDF
+            // 3. EXTRACTION: Extract text from PDF
             var extractedText = await _pdfExtractor.ExtractTextAsync(pdfContent);
 
             if (string.IsNullOrWhiteSpace(extractedText))
             {
-                throw new InvalidOperationException("Não foi possível extrair texto do PDF. O arquivo pode estar vazio ou conter apenas imagens.");
+                throw new InvalidOperationException("Could not extract text from PDF. The file may be empty or contain only images.");
             }
 
-            // 4. ANÁLISE: Envia para IA analisar
+            // 4. ANALYSIS: Send to AI for analysis
             var analysisResult = await _aiAnalyzer.AnalyzeAsync(extractedText);
 
             stopwatch.Stop();
 
-            // 5. ENRIQUECIMENTO: Adiciona metadados
+            // 5. ENRICHMENT: Add metadata
             analysisResult.FileName = fileName;
             analysisResult.FileSizeBytes = pdfContent.Length;
             analysisResult.FileHash = fileHash ?? string.Empty;
             analysisResult.ExtractedText = extractedText;
             analysisResult.Audit.ProcessingDuration = stopwatch.Elapsed;
 
-            // 6. CACHE: Salva no cache de PDFs
+            // 6. CACHE: Save to PDF cache
             if (_pdfCache != null && !string.IsNullOrEmpty(fileHash))
             {
                 await _pdfCache.SetCachedAnalysisAsync(fileHash, analysisResult, TimeSpan.FromHours(24));
             }
 
-            // 7. ARMAZENAMENTO: Salva resultado por 30 minutos
+            // 7. STORAGE: Save result for 30 minutes
             await _resultStore.StoreAsync(analysisResult, TimeSpan.FromMinutes(30));
 
-            // 8. RETORNO: Retorna o ID para o cliente usar nos endpoints
+            // 8. RETURN: Return the ID for client to use in endpoints
             return analysisResult.AnalysisId;
         }
         catch (InvalidOperationException)
         {
-            // Re-throw erros de validação/negócio sem alterar
+            // Re-throw validation/business errors without modifying
             throw;
         }
         catch (Exception ex)
         {
-            // Encapsula erros inesperados
-            throw new InvalidOperationException($"Erro ao processar PDF '{fileName}': {ex.Message}", ex);
+            // Wrap unexpected errors
+            throw new InvalidOperationException($"Error processing PDF '{fileName}': {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// Recupera resultado completo de uma análise
+    /// Retrieve complete analysis result
     /// </summary>
     public async Task<AnalysisResult?> GetAnalysisAsync(Guid analysisId)
     {
@@ -118,7 +118,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas o total investido
+    /// Retrieve only total invested amount
     /// </summary>
     public async Task<TotalInvested?> GetTotalAsync(Guid analysisId)
     {
@@ -127,7 +127,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas a classificação de ativos
+    /// Retrieve only asset classification
     /// </summary>
     public async Task<AssetClassification?> GetClassificationAsync(Guid analysisId)
     {
@@ -136,7 +136,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas as ações
+    /// Retrieve only stocks portfolio
     /// </summary>
     public async Task<StockPortfolio?> GetStocksAsync(Guid analysisId)
     {
@@ -147,7 +147,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas renda fixa
+    /// Retrieve only fixed income portfolio
     /// </summary>
     public async Task<FixedIncomePortfolio?> GetFixedIncomeAsync(Guid analysisId)
     {
@@ -156,7 +156,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas renda variável
+    /// Retrieve only variable income portfolio
     /// </summary>
     public async Task<VariableIncomePortfolio?> GetVariableIncomeAsync(Guid analysisId)
     {
@@ -165,7 +165,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas ativos alternativos
+    /// Retrieve only alternative assets portfolio
     /// </summary>
     public async Task<AlternativeAssetsPortfolio?> GetAlternativeAssetsAsync(Guid analysisId)
     {
@@ -174,7 +174,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas posições em cash
+    /// Retrieve only cash positions
     /// </summary>
     public async Task<CashPortfolio?> GetCashAsync(Guid analysisId)
     {
@@ -183,7 +183,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Recupera apenas o texto extraído do PDF
+    /// Retrieve only extracted text from PDF
     /// </summary>
     public async Task<string?> GetExtractedTextAsync(Guid analysisId)
     {

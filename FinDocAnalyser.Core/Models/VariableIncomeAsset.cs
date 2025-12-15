@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace FinDocAnalyzer.Core.Models;
 
 /// <summary>
-/// Portfolio de Renda Variável (ações, ETFs de equity, ADRs, BDRs, stock options)
+/// Variable Income Portfolio (stocks, equity ETFs, ADRs, BDRs, stock options)
 /// </summary>
 public class VariableIncomePortfolio
 {
@@ -17,62 +17,62 @@ public class VariableIncomePortfolio
 }
 
 /// <summary>
-/// Ativo de Renda Variável individual
+/// Individual Variable Income Asset
 /// </summary>
 public class VariableIncomeAsset
 {
     /// <summary>
-    /// Ticker/código do ativo (ex: "PETR4", "AAPL", "BOVA11")
+    /// Asset ticker/code (e.g.: "PETR4", "AAPL", "BOVA11")
     /// </summary>
     public string Ticker { get; set; } = string.Empty;
 
     /// <summary>
-    /// Nome completo do ativo
+    /// Asset full name
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Tipo de ativo (ex: "Stock", "ETF", "ADR", "BDR", "Stock Option")
+    /// Asset type (e.g.: "Stock", "ETF", "ADR", "BDR", "Stock Option")
     /// </summary>
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
-    /// Quantidade de cotas/ações (aceita fracionário)
+    /// Quantity of shares/units (accepts fractional)
     /// </summary>
     public decimal Quantity { get; set; }
 
     /// <summary>
-    /// Preço médio de compra
+    /// Average purchase price
     /// </summary>
     public decimal AveragePrice { get; set; }
 
     /// <summary>
-    /// Valor atual total da posição
+    /// Total current position value
     /// </summary>
     public decimal CurrentValue { get; set; }
 
     /// <summary>
-    /// Retorno absoluto (lucro/prejuízo)
+    /// Absolute return (profit/loss)
     /// </summary>
     public decimal? Return { get; set; }
 
     /// <summary>
-    /// Retorno percentual
+    /// Percentage return
     /// </summary>
     public decimal? ReturnPercentage { get; set; }
 
     /// <summary>
-    /// Dividend yield (ex: "8.62%")
+    /// Dividend yield (e.g.: "8.62%")
     /// </summary>
     public string Yield { get; set; } = string.Empty;
 
     /// <summary>
-    /// Confiança da extração (0.0 a 1.0)
+    /// Extraction confidence (0.0 to 1.0)
     /// </summary>
     public decimal Confidence { get; set; }
 
     /// <summary>
-    /// Explicação do nível de confiança
+    /// Confidence level explanation
     /// </summary>
     public string ConfidenceReason { get; set; } = string.Empty;
 }

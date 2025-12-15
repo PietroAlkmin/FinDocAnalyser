@@ -21,10 +21,10 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Upload e análise de PDF(s) financeiro(s) - processamento em paralelo
+    /// Upload and analyze financial PDF(s) - parallel processing
     /// </summary>
-    /// <param name="files">Arquivo(s) PDF do(s) relatório(s) financeiro(s) - máximo 20 arquivos</param>
-    /// <returns>Resultado da análise em batch com IDs individuais</returns>
+    /// <param name="files">Financial report PDF file(s) - maximum 20 files</param>
+    /// <returns>Batch analysis result with individual IDs</returns>
     [HttpPost]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(BatchAnalysisResponse), StatusCodes.Status202Accepted)]
@@ -34,48 +34,48 @@ public class AnalysisController : ControllerBase
     {
         try
         {
-            // Validação 1: Arquivos enviados?
+            // Validation 1: Files sent?
             if (files == null || files.Count == 0)
             {
                 return BadRequest(new ErrorResponse
                 {
-                    Error = "Nenhum arquivo foi enviado",
-                    Details = "Por favor, envie pelo menos um arquivo PDF válido"
+                    Error = "No files were sent",
+                    Details = "Please send at least one valid PDF file"
                 });
             }
 
-            // Validação 2: Limite de arquivos
+            // Validation 2: File limit
             if (files.Count > 20)
             {
                 return BadRequest(new ErrorResponse
                 {
-                    Error = "Muitos arquivos",
-                    Details = "Máximo de 20 arquivos por requisição"
+                    Error = "Too many files",
+                    Details = "Maximum 20 files per request"
                 });
             }
 
-            _logger.LogInformation("Iniciando análise em batch: {FileCount} arquivo(s)", files.Count);
+            _logger.LogInformation("Starting batch analysis: {FileCount} file(s)", files.Count);
 
             var tasks = new List<Task<BatchFileResult>>();
 
-            // Cria uma task para cada PDF (processamento paralelo)
+            // Create a task for each PDF (parallel processing)
             foreach (var file in files)
             {
                 var task = ProcessSingleFileAsync(file);
                 tasks.Add(task);
             }
 
-            // Aguarda TODOS os PDFs serem processados em paralelo
+            // Wait for ALL PDFs to be processed in parallel
             var results = await Task.WhenAll(tasks);
 
             var successCount = results.Count(r => r.Success);
             var failureCount = results.Count(r => !r.Success);
 
             _logger.LogInformation(
-                "Análise em batch concluída: {SuccessCount}/{TotalCount} arquivos processados com sucesso",
+                "Batch analysis completed: {SuccessCount}/{TotalCount} files processed successfully",
                 successCount, files.Count);
 
-            // Retorna 202 Accepted com resultados individuais
+            // Return 202 Accepted with individual results
             var response = new BatchAnalysisResponse
             {
                 TotalFiles = files.Count,
@@ -83,34 +83,34 @@ public class AnalysisController : ControllerBase
                 FailureCount = failureCount,
                 Results = results.ToList(),
                 Message = successCount == files.Count 
-                    ? $"Todos os {successCount} arquivos processados com sucesso"
-                    : $"{successCount} de {files.Count} arquivos processados com sucesso ({failureCount} falharam)"
+                    ? $"All {successCount} files processed successfully"
+                    : $"{successCount} of {files.Count} files processed successfully ({failureCount} failed)"
             };
 
             return Accepted(response);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Erro de validação ao processar arquivo");
+            _logger.LogWarning(ex, "Validation error processing file");
             return BadRequest(new ErrorResponse
             {
-                Error = "Erro ao processar arquivo",
+                Error = "Error processing file",
                 Details = ex.Message
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro inesperado ao processar arquivo");
+            _logger.LogError(ex, "Unexpected error processing file");
             return StatusCode(500, new ErrorResponse
             {
-                Error = "Erro interno do servidor",
-                Details = "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente."
+                Error = "Internal server error",
+                Details = "An error occurred processing your request. Please try again."
             });
         }
     }
 
     /// <summary>
-    /// Obtém o total investido
+    /// Get total invested amount
     /// </summary>
     [HttpGet("{id}/total")]
     [ProducesResponseType(typeof(TotalInvested), StatusCodes.Status200OK)]
@@ -123,8 +123,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -132,7 +132,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém a classificação de ativos
+    /// Get asset classification
     /// </summary>
     [HttpGet("{id}/classification")]
     [ProducesResponseType(typeof(AssetClassification), StatusCodes.Status200OK)]
@@ -145,8 +145,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -154,7 +154,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém as ações
+    /// Get stocks portfolio
     /// </summary>
     [HttpGet("{id}/stocks")]
     [ProducesResponseType(typeof(StockPortfolio), StatusCodes.Status200OK)]
@@ -167,8 +167,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -176,7 +176,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém a renda fixa
+    /// Get fixed income portfolio
     /// </summary>
     [HttpGet("{id}/fixed-income")]
     [ProducesResponseType(typeof(FixedIncomePortfolio), StatusCodes.Status200OK)]
@@ -189,8 +189,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -198,7 +198,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém a renda variável
+    /// Get variable income portfolio
     /// </summary>
     [HttpGet("{id}/variable-income")]
     [ProducesResponseType(typeof(VariableIncomePortfolio), StatusCodes.Status200OK)]
@@ -211,8 +211,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -220,7 +220,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém os ativos alternativos
+    /// Get alternative assets portfolio
     /// </summary>
     [HttpGet("{id}/alternative-assets")]
     [ProducesResponseType(typeof(AlternativeAssetsPortfolio), StatusCodes.Status200OK)]
@@ -233,8 +233,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -242,7 +242,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém as posições em cash
+    /// Get cash positions
     /// </summary>
     [HttpGet("{id}/cash")]
     [ProducesResponseType(typeof(CashPortfolio), StatusCodes.Status200OK)]
@@ -255,8 +255,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -264,7 +264,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém informações de auditoria completas da análise (incluindo resposta bruta da IA)
+    /// Get complete audit information for analysis (including raw AI response)
     /// </summary>
     [HttpGet("{id}/audit")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -277,8 +277,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -308,7 +308,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém o texto extraído do PDF
+    /// Get extracted text from PDF
     /// </summary>
     [HttpGet("{id}/extracted-text")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
@@ -321,8 +321,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -330,7 +330,7 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém os metadados completos da análise (incluindo custos, tokens, cache info)
+    /// Get complete analysis metadata (including costs, tokens, cache info)
     /// </summary>
     [HttpGet("{id}/metadata")]
     [ProducesResponseType(typeof(AnalysisResult), StatusCodes.Status200OK)]
@@ -343,8 +343,8 @@ public class AnalysisController : ControllerBase
         {
             return NotFound(new ErrorResponse
             {
-                Error = "Análise não encontrada",
-                Details = "A análise não existe ou já expirou (resultados disponíveis por 30 minutos)"
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
             });
         }
 
@@ -352,13 +352,13 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Processa um único arquivo PDF (usado internamente pelo batch)
+    /// Process a single PDF file (used internally by batch)
     /// </summary>
     private async Task<BatchFileResult> ProcessSingleFileAsync(IFormFile file)
     {
         try
         {
-            // Validação: Tamanho
+            // Validation: Size
             if (file.Length > MaxFileSizeBytes)
             {
                 return new BatchFileResult
@@ -366,11 +366,11 @@ public class AnalysisController : ControllerBase
                     FileName = file.FileName,
                     FileSizeBytes = file.Length,
                     Success = false,
-                    Error = $"Arquivo muito grande (máximo {MaxFileSizeBytes / 1024 / 1024} MB)"
+                    Error = $"File too large (maximum {MaxFileSizeBytes / 1024 / 1024} MB)"
                 };
             }
 
-            // Validação: Tipo
+            // Validation: Type
             if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
             {
                 return new BatchFileResult
@@ -378,14 +378,14 @@ public class AnalysisController : ControllerBase
                     FileName = file.FileName,
                     FileSizeBytes = file.Length,
                     Success = false,
-                    Error = "Tipo de arquivo inválido (apenas PDF)"
+                    Error = "Invalid file type (PDF only)"
                 };
             }
 
-            _logger.LogInformation("[BATCH] Processando: {FileName} ({FileSize} bytes)",
+            _logger.LogInformation("[BATCH] Processing: {FileName} ({FileSize} bytes)",
                 file.FileName, file.Length);
 
-            // Lê o arquivo
+            // Read the file
             byte[] fileContent;
             using (var memoryStream = new MemoryStream())
             {
@@ -393,10 +393,10 @@ public class AnalysisController : ControllerBase
                 fileContent = memoryStream.ToArray();
             }
 
-            // Processa com AI dedicada
+            // Process with dedicated AI
             var analysisId = await _orchestrator.ProcessPdfAsync(fileContent, file.FileName);
 
-            _logger.LogInformation("[BATCH] ✅ Sucesso: {FileName} → {AnalysisId}",
+            _logger.LogInformation("[BATCH] ✅ Success: {FileName} → {AnalysisId}",
                 file.FileName, analysisId);
 
             return new BatchFileResult
@@ -420,7 +420,7 @@ public class AnalysisController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[BATCH] ❌ Erro ao processar: {FileName}", file.FileName);
+            _logger.LogError(ex, "[BATCH] ❌ Error processing: {FileName}", file.FileName);
 
             return new BatchFileResult
             {
@@ -433,7 +433,7 @@ public class AnalysisController : ControllerBase
     }
 }
 
-// DTOs para respostas
+// Response DTOs
 public class AnalysisResponse
 {
     public Guid AnalysisId { get; set; }

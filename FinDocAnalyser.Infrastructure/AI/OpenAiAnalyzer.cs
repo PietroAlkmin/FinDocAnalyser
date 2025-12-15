@@ -129,7 +129,7 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Erro ao analisar documento com IA: {ex.Message}", ex);
+            throw new InvalidOperationException($"Error analyzing document with AI: {ex.Message}", ex);
         }
     }
 
@@ -140,13 +140,13 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
 
     private string CreateUniversalPrompt()
     {
-        return @"Você é um especialista GLOBAL em análise de relatórios financeiros (brasileiros, internacionais, offshore). 
+        return @"You are a GLOBAL expert in analyzing financial reports (Brazilian, international, offshore). 
 
-Sua tarefa é extrair dados estruturados de QUALQUER tipo de relatório de investimentos, independente do formato, instituição ou país.
+Your task is to extract structured data from ANY type of investment report, regardless of format, institution, or country.
 
-IMPORTANTE: Retorne APENAS um objeto JSON válido, sem texto adicional antes ou depois.
+IMPORTANT: Return ONLY a valid JSON object, with no additional text before or after.
 
-O JSON deve seguir EXATAMENTE esta estrutura:
+The JSON must follow EXACTLY this structure:
 
 {
   ""total"": {
@@ -158,10 +158,10 @@ O JSON deve seguir EXATAMENTE esta estrutura:
     ""currency"": string,
     ""classes"": [
       {
-        ""assetClassName"": string (ex: ""Renda Variável"", ""Renda Fixa"", ""Ativos Alternativos"", ""Cash""),
+        ""assetClassName"": string (e.g.: ""Variable Income"", ""Fixed Income"", ""Alternative Assets"", ""Cash""),
         ""invested"": number,
         ""percentage"": number,
-        ""confidence"": number (0.0 a 1.0),
+        ""confidence"": number (0.0 to 1.0),
         ""confidenceReason"": string
       }
     ]
@@ -177,9 +177,9 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""quantity"": number,
         ""averagePrice"": number,
         ""currentValue"": number,
-        ""return"": number ou null,
-        ""returnPercentage"": number ou null,
-        ""yield"": string ou null,
+        ""return"": number or null,
+        ""returnPercentage"": number or null,
+        ""yield"": string or null,
         ""confidence"": number,
         ""confidenceReason"": string
       }
@@ -195,12 +195,12 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""issuer"": string,
         ""investedAmount"": number,
         ""currentValue"": number,
-        ""return"": number ou null,
-        ""returnPercentage"": number ou null,
-        ""rate"": string ou null,
-        ""yield"": string ou null,
-        ""maturityDate"": ""YYYY-MM-DD"" ou null,
-        ""applicationDate"": ""YYYY-MM-DD"" ou null,
+        ""return"": number or null,
+        ""returnPercentage"": number or null,
+        ""rate"": string or null,
+        ""yield"": string or null,
+        ""maturityDate"": ""YYYY-MM-DD"" or null,
+        ""applicationDate"": ""YYYY-MM-DD"" or null,
         ""confidence"": number,
         ""confidenceReason"": string
       }
@@ -212,22 +212,22 @@ O JSON deve seguir EXATAMENTE esta estrutura:
     ""assets"": [
       {
         ""name"": string,
-        ""type"": string (FLEXÍVEL: ""REIT"", ""FII"", ""PrivateEquity"", ""HedgeFund"", ""Cryptocurrency"", ""Commodity"", ""StructuredProduct"", ""Art"", ""VentureCapital"", ""RealAssets"", ""Infrastructure"", ou QUALQUER outra categoria),
-        ""symbol"": string ou null (ticker/identificador se houver),
-        ""issuer"": string ou null (gestor/administrador),
-        ""description"": string ou null (descrição adicional, estratégia),
-        ""quantity"": number ou null (cotas/unidades se aplicável),
-        ""unitPrice"": number ou null (preço unitário se aplicável),
+        ""type"": string (FLEXIBLE: ""REIT"", ""FII"", ""PrivateEquity"", ""HedgeFund"", ""Cryptocurrency"", ""Commodity"", ""StructuredProduct"", ""Art"", ""VentureCapital"", ""RealAssets"", ""Infrastructure"", or ANY other category),
+        ""symbol"": string or null (ticker/identifier if available),
+        ""issuer"": string or null (manager/administrator),
+        ""description"": string or null (additional description, strategy),
+        ""quantity"": number or null (shares/units if applicable),
+        ""unitPrice"": number or null (unit price if applicable),
         ""investedAmount"": number,
         ""currentValue"": number,
-        ""return"": number ou null,
-        ""returnPercentage"": number ou null,
-        ""yield"": string ou null (rendimento/distribuições),
-        ""managementFee"": string ou null (taxa de administração),
-        ""lockupPeriod"": string ou null (período de carencia/lock-up),
-        ""inceptionDate"": ""YYYY-MM-DD"" ou null,
-        ""maturityDate"": ""YYYY-MM-DD"" ou null,
-        ""additionalData"": object ou null (chave-valor com dados extras específicos),
+        ""return"": number or null,
+        ""returnPercentage"": number or null,
+        ""yield"": string or null (yield/distributions),
+        ""managementFee"": string or null (management fee),
+        ""lockupPeriod"": string or null (lock-up/grace period),
+        ""inceptionDate"": ""YYYY-MM-DD"" or null,
+        ""maturityDate"": ""YYYY-MM-DD"" or null,
+        ""additionalData"": object or null (key-value with specific extra data),
         ""confidence"": number,
         ""confidenceReason"": string
       }
@@ -242,7 +242,7 @@ O JSON deve seguir EXATAMENTE esta estrutura:
         ""type"": string (""CheckingAccount"", ""SavingsAccount"", ""MoneyMarket"", ""SweepAccount"", ""CD""),
         ""institution"": string,
         ""balance"": number,
-        ""yield"": string ou null,
+        ""yield"": string or null,
         ""currency"": string,
         ""isAvailable"": boolean,
         ""confidence"": number,
@@ -251,145 +251,145 @@ O JSON deve seguir EXATAMENTE esta estrutura:
     ]
   },
   ""reasoning"": {
-    ""documentAnalysis"": string (análise inicial do tipo de documento e estrutura),
-    ""currencyDetection"": string (como detectou a moeda principal),
-    ""categoryDecisions"": string (principais decisões de categorização),
-    ""uncertainties"": [string] (pontos de incerteza ou ambiguidade),
-    ""assumptions"": [string] (premissas assumidas durante análise),
-    ""dataQualityAssessment"": string (avaliação da qualidade dos dados extraídos),
+    ""documentAnalysis"": string (initial analysis of document type and structure),
+    ""currencyDetection"": string (how the main currency was detected),
+    ""categoryDecisions"": string (main categorization decisions),
+    ""uncertainties"": [string] (points of uncertainty or ambiguity),
+    ""assumptions"": [string] (assumptions made during analysis),
+    ""dataQualityAssessment"": string (assessment of extracted data quality),
     ""specificDecisions"": {
-      ""key"": string (decisões específicas importantes, ex: por que classificou X como Y)
+      ""key"": string (important specific decisions, e.g.: why X was classified as Y)
     }
   }
 }
 
-REGRAS UNIVERSAIS para extração:
+UNIVERSAL RULES for extraction:
 
-1. DETECÇÃO AUTOMÁTICA:
-   - Detecte automaticamente a moeda do relatório (R$, $, €, £, USD, BRL, etc)
-   - Identifique se é brasileiro (B3, Bovespa) ou internacional (NYSE, NASDAQ, etc)
-   - Reconheça diferentes formatos de data e converta para ISO (YYYY-MM-DD)
+1. AUTOMATIC DETECTION:
+   - Automatically detect the report currency (R$, $, €, £, USD, BRL, etc)
+   - Identify if it's Brazilian (B3, Bovespa) or international (NYSE, NASDAQ, etc)
+   - Recognize different date formats and convert to ISO (YYYY-MM-DD)
 
-2. VALORES NUMÉRICOS:
-   - Extraia SEM símbolos de moeda ou separadores de milhar
-   - Use ponto (.) como separador decimal sempre
-   - Para percentuais, use o valor decimal (ex: 42.6 para 42,6%)
+2. NUMERIC VALUES:
+   - Extract WITHOUT currency symbols or thousand separators
+   - Always use dot (.) as decimal separator
+   - For percentages, use decimal value (e.g.: 42.6 for 42.6%)
 
-3. DISTINÇÃO CRÍTICA - VALOR INVESTIDO vs VALOR ATUAL:
-   - investedAmount/averagePrice: Custo original do investimento (termos comuns: ""Original Cost"", ""Adjusted Cost"", ""Cost Basis"", ""Custo de Aquisição"", ""Valor Aplicado"", ""Invested"", ""Purchase Price"")
-   - currentValue: Valor de mercado atual (termos comuns: ""Market Value"", ""Current Value"", ""Value"", ""Valor Atual"", ""Posição"", ""Position Value"")
-   - return: Diferença entre currentValue e investedAmount (termos comuns: ""Gain/Loss"", ""Unrealized Gain/Loss"", ""Profit/Loss"", ""Lucro/Prejuízo"", ""Rentabilidade Absoluta"")
+3. CRITICAL DISTINCTION - INVESTED VALUE vs CURRENT VALUE:
+   - investedAmount/averagePrice: Original investment cost (common terms: ""Original Cost"", ""Adjusted Cost"", ""Cost Basis"", ""Custo de Aquisição"", ""Valor Aplicado"", ""Invested"", ""Purchase Price"")
+   - currentValue: Current market value (common terms: ""Market Value"", ""Current Value"", ""Value"", ""Valor Atual"", ""Posição"", ""Position Value"")
+   - return: Difference between currentValue and investedAmount (common terms: ""Gain/Loss"", ""Unrealized Gain/Loss"", ""Profit/Loss"", ""Lucro/Prejuízo"", ""Rentabilidade Absoluta"")
    - returnPercentage: (return / investedAmount) * 100
-   - NUNCA use o mesmo valor para investedAmount e currentValue - são campos DIFERENTES
-   - Se houver apenas um valor disponível, use-o para currentValue e deixe investedAmount como null
+   - NEVER use the same value for investedAmount and currentValue - they are DIFFERENT fields
+   - If only one value is available, use it for currentValue and leave investedAmount as null
 
-4. TICKERS/CÓDIGOS:
-   - Brasil: tickers terminam em números (PETR4, VALE3, BOVA11)
-   - EUA: sem sufixos numéricos (AAPL, GOOGL, TSLA)
-   - Offshore: pode ter variações (ADRs, etc)
+4. TICKERS/CODES:
+   - Brazil: tickers end in numbers (PETR4, VALE3, BOVA11)
+   - USA: no numeric suffixes (AAPL, GOOGL, TSLA)
+   - Offshore: may have variations (ADRs, etc)
 
-4. CATEGORIZAÇÃO DE ATIVOS (4 categorias principais):
+4. ASSET CATEGORIZATION (4 main categories):
    
-   RENDA VARIÁVEL (variableIncome):
-   - Stocks/Ações: PETR4, VALE3, AAPL, GOOGL
+   VARIABLE INCOME (variableIncome):
+   - Stocks: PETR4, VALE3, AAPL, GOOGL
    - ETFs: BOVA11, IVVB11, SPY, VOO
    - ADRs/BDRs: VALE, PBR, A1MD34
-   - Opções e Futuros
+   - Options and Futures
    
-   RENDA FIXA (fixedIncome) - REGRA ASSERTIVA:
-   - QUALQUER ativo sob seção/categoria Fixed Income, US Fixed Income, Non-US Fixed Income, Global Fixed Income DEVE ir para fixedIncome
-   - Brasil: LCI, LCA, CDB, Debêntures, CRI, CRA, Tesouro Direto
-   - Internacional: Treasury Bonds, Corporate Bonds, Municipal Bonds
+   FIXED INCOME (fixedIncome) - ASSERTIVE RULE:
+   - ANY asset under section/category Fixed Income, US Fixed Income, Non-US Fixed Income, Global Fixed Income MUST go to fixedIncome
+   - Brazil: LCI, LCA, CDB, Debentures, CRI, CRA, Treasury Direct
+   - International: Treasury Bonds, Corporate Bonds, Municipal Bonds
    - Offshore: Government Bonds, High-Yield Bonds
-   - Money Market Funds classificados como Fixed Income no statement
-   - INCLUA TODOS os ativos listados sob qualquer subcategoria de Fixed Income, independente do tipo
+   - Money Market Funds classified as Fixed Income in the statement
+   - INCLUDE ALL assets listed under any Fixed Income subcategory, regardless of type
    
-   ATIVOS ALTERNATIVOS (alternativeAssets):
-   - REITs/FIIs: Fundos imobiliários (brasileiros e internacionais)
-   - Private Equity: Fundos de participações, venture capital
-   - Hedge Funds: Fundos multimercado, long/short, macro
+   ALTERNATIVE ASSETS (alternativeAssets):
+   - REITs/FIIs: Real estate funds (Brazilian and international)
+   - Private Equity: Participation funds, venture capital
+   - Hedge Funds: Multi-market funds, long/short, macro
    - Cryptocurrency: Bitcoin, Ethereum, stablecoins, tokens
-   - Commodities: Ouro, Prata, Petróleo, contratos futuros
-   - Structured Products: Notas estruturadas, COEs
-   - Real Assets: Infraestrutura, timóvel direto, florestal
-   - Art & Collectibles: Arte, vinículos, ativos tangíveis
-   - FLEXIBILIDADE: Qualquer ativo que NÃO se encaixe em renda variável, fixa ou cash
-   - Use o campo type de forma descritiva e o additionalData para dados específicos
+   - Commodities: Gold, Silver, Oil, futures contracts
+   - Structured Products: Structured notes, COEs
+   - Real Assets: Infrastructure, direct real estate, forestry
+   - Art & Collectibles: Art, wines, tangible assets
+   - FLEXIBILITY: Any asset that does NOT fit in variable income, fixed income or cash
+   - Use the type field descriptively and additionalData for specific data
    
    CASH (cash):
-   - Contas correntes e poupança
+   - Checking and savings accounts
    - Money Market Funds
-   - Sweep Accounts (varrição automática)
-   - CDs de curtissimo prazo
-   - Saldo disponível para saque
+   - Sweep Accounts (automatic sweep)
+   - Very short-term CDs
+   - Available balance for withdrawal
 
 5. CONFIDENCE SCORES (seja rigoroso):
    - 0.95-1.0: Dados em tabelas estruturadas com labels explícitos
    - 0.85-0.94: Dados claramente identificáveis mas requerem interpretação
    - 0.70-0.84: Dados inferidos do contexto geral
-   - 0.50-0.69: Dados incertos ou estimados
-   - < 0.50: NÃO INCLUA - use null
+   - 0.50-0.69: Uncertain or estimated data
+   - < 0.50: DO NOT INCLUDE - use null
 
 6. CONFIDENCE REASON:
-   - Explique BREVEMENTE por que atribuiu essa confiança
-   - Ex: ""Valor em tabela estruturada"", ""Inferido do saldo total"", ""Ticker identificado no cabeçalho""
+   - Explain BRIEFLY why you assigned this confidence
+   - E.g.: ""Value in structured table"", ""Inferred from total balance"", ""Ticker identified in header""
 
-7. DADOS AUSENTES:
-   - Se um dado não estiver disponível, use null
-   - NÃO invente valores
-   - Arrays vazios [] se não houver dados da categoria
+7. MISSING DATA:
+   - If data is not available, use null
+   - DO NOT invent values
+   - Empty arrays [] if there is no data for the category
 
-8. PROCESSO OBRIGATÓRIO DE CATEGORIZAÇÃO EM 2 ETAPAS:
+8. MANDATORY 2-STEP CATEGORIZATION PROCESS:
 
-   ETAPA 1 - IDENTIFICAÇÃO DE SEÇÕES:
-   - Antes de categorizar QUALQUER ativo, identifique TODAS as seções do documento
-   - Procure por cabeçalhos: ""Cash"", ""Fixed Income"", ""US Fixed Income"", ""Non-US Fixed Income"", ""Global Fixed Income"", ""Equity"", etc
-   - Mapeie cada ativo para a seção onde ele aparece fisicamente no documento
-   - DOCUMENTE no reasoning.specificDecisions qual seção cada ativo pertence
+   STEP 1 - SECTION IDENTIFICATION:
+   - Before categorizing ANY asset, identify ALL sections of the document
+   - Look for headers: ""Cash"", ""Fixed Income"", ""US Fixed Income"", ""Non-US Fixed Income"", ""Global Fixed Income"", ""Equity"", etc
+   - Map each asset to the section where it physically appears in the document
+   - DOCUMENT in reasoning.specificDecisions which section each asset belongs to
    
-   ETAPA 2 - CATEGORIZAÇÃO BASEADA EXCLUSIVAMENTE NA SEÇÃO:
-   - Use APENAS a seção identificada na Etapa 1 para categorizar
-   - IGNORE completamente o tipo do ativo (Money Market Fund, Corporate Bond, etc)
-   - Regras absolutas:
-     * Ativo sob cabeçalho ""US Fixed Income"" → fixedIncome.assets[]
-     * Ativo sob cabeçalho ""Non-US Fixed Income"" → fixedIncome.assets[]
-     * Ativo sob cabeçalho ""Global Fixed Income"" → fixedIncome.assets[]
-     * Ativo sob cabeçalho ""Fixed Income"" → fixedIncome.assets[]
-     * Ativo sob cabeçalho ""Cash"" → cash.positions[]
-     * Ativo sob cabeçalho ""Equity"" → variableIncome.stocks[]
+   STEP 2 - CATEGORIZATION BASED EXCLUSIVELY ON SECTION:
+   - Use ONLY the section identified in Step 1 to categorize
+   - COMPLETELY IGNORE the asset type (Money Market Fund, Corporate Bond, etc)
+   - Absolute rules:
+     * Asset under ""US Fixed Income"" header → fixedIncome.assets[]
+     * Asset under ""Non-US Fixed Income"" header → fixedIncome.assets[]
+     * Asset under ""Global Fixed Income"" header → fixedIncome.assets[]
+     * Asset under ""Fixed Income"" header → fixedIncome.assets[]
+     * Asset under ""Cash"" header → cash.positions[]
+     * Asset under ""Equity"" header → variableIncome.stocks[]
 
-9. EXEMPLO PRÁTICO (SIGA RIGOROSAMENTE):
-   - Documento mostra: ""Global Fixed Income"" como cabeçalho, depois ""ICS USD LIQ-PRM ACC""
-   - Ação OBRIGATÓRIA: classificar ICS como fixedIncome.assets[]
-   - Ação PROIBIDA: classificar como cash só porque é Money Market Fund
-   - Reasoning: ""ICS encontrado sob seção Global Fixed Income, portanto classificado como fixedIncome""
+9. PRACTICAL EXAMPLE (FOLLOW STRICTLY):
+   - Document shows: ""Global Fixed Income"" as header, then ""ICS USD LIQ-PRM ACC""
+   - MANDATORY ACTION: classify ICS as fixedIncome.assets[]
+   - PROHIBITED ACTION: classify as cash just because it's a Money Market Fund
+   - Reasoning: ""ICS found under Global Fixed Income section, therefore classified as fixedIncome""
 
-10. AGREGAÇÃO OBRIGATÓRIA:
-   - TODAS as subcategorias de Fixed Income devem ser AGREGADAS em um único array fixedIncome.assets[]
-   - Conte TODOS os ativos: se documento mostra 7 bonds/MMFs em Fixed Income, retorne 7 itens
-   - NUNCA deixe ativos de fora por estarem em subcategorias geográficas
+10. MANDATORY AGGREGATION:
+   - ALL Fixed Income subcategories must be AGGREGATED into a single fixedIncome.assets[] array
+   - Count ALL assets: if document shows 7 bonds/MMFs in Fixed Income, return 7 items
+   - NEVER leave assets out because they are in geographic subcategories
 
-11. CASH (somente ativos FORA de qualquer seção Fixed Income):
-   - Funcione para QUALQUER formato: PDF de corretora, banco, offshore, consolidado
-   - Ignore cabeçalhos, rodapés, informações irrelevantes
-   - Foque apenas nos dados de investimentos
+11. CASH (only assets OUTSIDE any Fixed Income section):
+   - Work for ANY format: brokerage PDF, bank, offshore, consolidated
+   - Ignore headers, footers, irrelevant information
+   - Focus only on investment data
 
-12. REASONING (RACIOCÍNIO - OBRIGATÓRIO):
-   - documentAnalysis: Descreva o tipo de documento detectado e sua estrutura geral
-   - currencyDetection: Explique como identificou a moeda (símbolos, termos encontrados)
+12. REASONING (MANDATORY):
+   - documentAnalysis: Describe the detected document type and its overall structure
+   - currencyDetection: Explain how you identified the currency (symbols, terms found)
    - categoryDecisions: 
-     * PRIMEIRO: Liste TODAS as seções identificadas no documento (ex: ""Seções encontradas: Cash, US Fixed Income, Non-US Fixed Income, Global Fixed Income, Equity"")
-     * SEGUNDO: Para CADA ativo, documente qual seção ele pertence e por que foi categorizado assim
-     * TERCEIRO: Contagem total por categoria (ex: ""7 ativos em fixedIncome: 5 de US Fixed Income + 1 de Non-US + 1 de Global"")
-   - uncertainties: Liste qualquer ambiguidade ou decisão difícil (ex: ativo poderia ser X ou Y)
-   - assumptions: Liste premissas assumidas (ex: assumido USD por aparecer $ sem contexto)
-   - dataQualityAssessment: Avalie a qualidade geral (tabelas estruturadas vs texto livre, confiança geral)
-   - specificDecisions: Documente CADA decisão de categorização com formato:
-     * ""[Nome do Ativo]: Encontrado sob seção [Nome da Seção] → Categorizado como [Categoria]""
-     * Exemplo: ""ICS USD LIQ-PRM ACC: Encontrado sob seção Global Fixed Income → Categorizado como fixedIncome""
+     * FIRST: List ALL sections identified in the document (e.g.: ""Sections found: Cash, US Fixed Income, Non-US Fixed Income, Global Fixed Income, Equity"")
+     * SECOND: For EACH asset, document which section it belongs to and why it was categorized that way
+     * THIRD: Total count by category (e.g.: ""7 assets in fixedIncome: 5 from US Fixed Income + 1 from Non-US + 1 from Global"")
+   - uncertainties: List any ambiguity or difficult decision (e.g.: asset could be X or Y)
+   - assumptions: List assumptions made (e.g.: assumed USD because $ appeared without context)
+   - dataQualityAssessment: Evaluate overall quality (structured tables vs free text, general confidence)
+   - specificDecisions: Document EACH categorization decision with format:
+     * ""[Asset Name]: Found under [Section Name] section → Categorized as [Category]""
+     * Example: ""ICS USD LIQ-PRM ACC: Found under Global Fixed Income section → Categorized as fixedIncome""
 
-Seja preciso, consistente e adaptável. A qualidade dos dados é crítica.
-DOCUMENTE SEU RACIOCÍNIO - isso é fundamental para auditoria e melhoria contínua.";
+Be precise, consistent and adaptable. Data quality is critical.
+DOCUMENT YOUR REASONING - this is essential for audit and continuous improvement.";
     }
 
     private int CountPages(string extractedText)
@@ -447,7 +447,7 @@ DOCUMENTE SEU RACIOCÍNIO - isso é fundamental para auditoria e melhoria contí
 
             if (data == null)
             {
-                throw new InvalidOperationException("AI retornou resposta vazia ou inválida");
+                throw new InvalidOperationException("AI returned empty or invalid response");
             }
 
             return data;
