@@ -1,6 +1,8 @@
 using FinDocAnalyzer.Core.Interfaces;
+using FinDocAnalyzer.Core.Models;
 using FinDocAnalyzer.Core.Services;
 using FinDocAnalyzer.Infrastructure.AI;
+using FinDocAnalyzer.Infrastructure.AI.Specialized;
 using FinDocAnalyzer.Infrastructure.Caching;
 using FinDocAnalyzer.Infrastructure.Pdf;
 using FinDocAnalyzer.Infrastructure.Storage;
@@ -31,7 +33,14 @@ public static class ServiceCollectionExtensions
         // Register core services
         services.AddScoped<AnalysisOrchestrator>();
         services.AddScoped<IPdfExtractor, PdfPigExtractor>();
-        services.AddScoped<IAiAnalyzer, AiDocumentAnalyzer>();
+        services.AddScoped<IAiAnalyzer, AiDocumentAnalyzer>(); // Legacy analyzer (kept for backward compatibility)
+        
+        // Register specialized analyzers (new chain)
+        services.AddScoped<ISpecializedAnalyzer<VariableIncomePortfolio>, VariableIncomeAnalyzer>();
+        services.AddScoped<ISpecializedAnalyzer<FixedIncomePortfolio>, FixedIncomeAnalyzer>();
+        services.AddScoped<ISpecializedAnalyzer<AlternativeAssetsPortfolio>, AlternativeAssetsAnalyzer>();
+        services.AddScoped<ISpecializedAnalyzer<CashPortfolio>, CashAnalyzer>();
+        services.AddScoped<IAggregatorAnalyzer, AggregatorAnalyzer>();
 
         // PDF cache
         if (options.EnablePdfCache)

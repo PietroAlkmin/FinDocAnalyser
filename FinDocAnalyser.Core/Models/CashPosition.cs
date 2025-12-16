@@ -14,6 +14,16 @@ public class CashPortfolio
     public decimal? TotalBalance { get; set; }
     public string Currency { get; set; } = "BRL";
     public List<CashPosition> Positions { get; set; } = new();
+    
+    /// <summary>
+    /// Total contribution to portfolio (sum of all position balances)
+    /// </summary>
+    public decimal TotalContribution { get; set; }
+    
+    /// <summary>
+    /// Percentage of total portfolio
+    /// </summary>
+    public decimal? PercentageOfPortfolio { get; set; }
 }
 
 /// <summary>

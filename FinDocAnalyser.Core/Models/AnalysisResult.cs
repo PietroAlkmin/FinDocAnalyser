@@ -74,6 +74,12 @@ public class AnalysisMetadata
     
     // AI reasoning and decision tracking
     public AiReasoning? Reasoning { get; set; }
+    
+    // Specialized AI chain metadata
+    public bool UsedSpecializedChain { get; set; } = false;
+    public List<string> FailedAnalyzers { get; set; } = new();
+    public List<string> ValidationWarnings { get; set; } = new();
+    public bool HasInconsistencies { get; set; } = false;
 }
 
 /// <summary>

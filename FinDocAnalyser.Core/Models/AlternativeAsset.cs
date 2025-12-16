@@ -14,6 +14,16 @@ public class AlternativeAssetsPortfolio
     public decimal TotalInvested { get; set; }
     public string Currency { get; set; } = "USD";
     public List<AlternativeAsset> Assets { get; set; } = new();
+    
+    /// <summary>
+    /// Total contribution to portfolio (sum of all asset currentValues)
+    /// </summary>
+    public decimal TotalContribution { get; set; }
+    
+    /// <summary>
+    /// Percentage of total portfolio
+    /// </summary>
+    public decimal? PercentageOfPortfolio { get; set; }
 }
 
 /// <summary>

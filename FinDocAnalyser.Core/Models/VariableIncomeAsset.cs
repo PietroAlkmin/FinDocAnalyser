@@ -14,6 +14,16 @@ public class VariableIncomePortfolio
     public decimal TotalInvested { get; set; }
     public string Currency { get; set; } = "BRL";
     public List<VariableIncomeAsset> Assets { get; set; } = new();
+    
+    /// <summary>
+    /// Total contribution to portfolio (sum of all asset currentValues)
+    /// </summary>
+    public decimal TotalContribution { get; set; }
+    
+    /// <summary>
+    /// Percentage of total portfolio
+    /// </summary>
+    public decimal? PercentageOfPortfolio { get; set; }
 }
 
 /// <summary>

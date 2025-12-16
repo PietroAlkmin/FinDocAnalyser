@@ -13,20 +13,46 @@ namespace FinDocAnalyzer.Core.Services;
 public class AnalysisOrchestrator
 {
     private readonly IPdfExtractor _pdfExtractor;
-    private readonly IAiAnalyzer _aiAnalyzer;
+    private readonly IAiAnalyzer _aiAnalyzer; // Legacy analyzer (kept for backward compatibility)
     private readonly IResultStore _resultStore;
     private readonly IPdfCache? _pdfCache;
+    
+    // Specialized analyzers (new chain)
+    private readonly ISpecializedAnalyzer<VariableIncomePortfolio>? _variableAnalyzer;
+    private readonly ISpecializedAnalyzer<FixedIncomePortfolio>? _fixedAnalyzer;
+    private readonly ISpecializedAnalyzer<AlternativeAssetsPortfolio>? _alternativeAnalyzer;
+    private readonly ISpecializedAnalyzer<CashPortfolio>? _cashAnalyzer;
+    private readonly IAggregatorAnalyzer? _aggregatorAnalyzer;
+    
+    private readonly bool _useSpecializedChain;
 
     public AnalysisOrchestrator(
         IPdfExtractor pdfExtractor,
         IAiAnalyzer aiAnalyzer,
         IResultStore resultStore,
-        IPdfCache? pdfCache = null)
+        IPdfCache? pdfCache = null,
+        ISpecializedAnalyzer<VariableIncomePortfolio>? variableAnalyzer = null,
+        ISpecializedAnalyzer<FixedIncomePortfolio>? fixedAnalyzer = null,
+        ISpecializedAnalyzer<AlternativeAssetsPortfolio>? alternativeAnalyzer = null,
+        ISpecializedAnalyzer<CashPortfolio>? cashAnalyzer = null,
+        IAggregatorAnalyzer? aggregatorAnalyzer = null)
     {
         _pdfExtractor = pdfExtractor;
         _aiAnalyzer = aiAnalyzer;
         _resultStore = resultStore;
         _pdfCache = pdfCache;
+        _variableAnalyzer = variableAnalyzer;
+        _fixedAnalyzer = fixedAnalyzer;
+        _alternativeAnalyzer = alternativeAnalyzer;
+        _cashAnalyzer = cashAnalyzer;
+        _aggregatorAnalyzer = aggregatorAnalyzer;
+        
+        // Use specialized chain if all analyzers are available
+        _useSpecializedChain = variableAnalyzer != null 
+            && fixedAnalyzer != null 
+            && alternativeAnalyzer != null 
+            && cashAnalyzer != null 
+            && aggregatorAnalyzer != null;
     }
 
     /// <summary>
@@ -73,8 +99,18 @@ public class AnalysisOrchestrator
                 throw new InvalidOperationException("Could not extract text from PDF. The file may be empty or contain only images.");
             }
 
-            // 4. ANALYSIS: Send to AI for analysis
-            var analysisResult = await _aiAnalyzer.AnalyzeAsync(extractedText);
+            // 4. ANALYSIS: Choose between specialized chain or legacy analyzer
+            AnalysisResult analysisResult;
+            
+            if (_useSpecializedChain)
+            {
+                analysisResult = await ProcessWithSpecializedChainAsync(extractedText);
+            }
+            else
+            {
+                // Legacy path - single AI analyzer
+                analysisResult = await _aiAnalyzer.AnalyzeAsync(extractedText);
+            }
 
             stopwatch.Stop();
 
@@ -107,6 +143,104 @@ public class AnalysisOrchestrator
             // Wrap unexpected errors
             throw new InvalidOperationException($"Error processing PDF '{fileName}': {ex.Message}", ex);
         }
+    }
+    
+    /// <summary>
+    /// Process PDF using specialized AI chain (parallel execution)
+    /// </summary>
+    private async Task<AnalysisResult> ProcessWithSpecializedChainAsync(string extractedText)
+    {
+        // STEP 1: Execute 4 specialized analyzers in PARALLEL
+        var variableTask = _variableAnalyzer!.AnalyzeAsync(extractedText);
+        var fixedTask = _fixedAnalyzer!.AnalyzeAsync(extractedText);
+        var alternativeTask = _alternativeAnalyzer!.AnalyzeAsync(extractedText);
+        var cashTask = _cashAnalyzer!.AnalyzeAsync(extractedText);
+        
+        await Task.WhenAll(variableTask, fixedTask, alternativeTask, cashTask);
+        
+        var variableIncome = await variableTask;
+        var fixedIncome = await fixedTask;
+        var alternativeAssets = await alternativeTask;
+        var cash = await cashTask;
+        
+        // Track which analyzers succeeded/failed
+        var failedAnalyzers = new List<string>();
+        if (variableIncome == null) failedAnalyzers.Add("VariableIncome");
+        if (fixedIncome == null) failedAnalyzers.Add("FixedIncome");
+        if (alternativeAssets == null) failedAnalyzers.Add("AlternativeAssets");
+        if (cash == null) failedAnalyzers.Add("Cash");
+        
+        // STEP 2: Aggregate with AI Aggregator
+        var aggregated = await _aggregatorAnalyzer!.AggregateAsync(
+            variableIncome,
+            fixedIncome,
+            alternativeAssets,
+            cash);
+        
+        // STEP 3: Update percentages in portfolios
+        if (variableIncome != null)
+            variableIncome.PercentageOfPortfolio = aggregated.UpdatedPercentages.VariableIncomePercentage;
+        
+        if (fixedIncome != null)
+            fixedIncome.PercentageOfPortfolio = aggregated.UpdatedPercentages.FixedIncomePercentage;
+        
+        if (alternativeAssets != null)
+            alternativeAssets.PercentageOfPortfolio = aggregated.UpdatedPercentages.AlternativeAssetsPercentage;
+        
+        if (cash != null)
+            cash.PercentageOfPortfolio = aggregated.UpdatedPercentages.CashPercentage;
+        
+        // STEP 4: Create final result
+        var result = new AnalysisResult
+        {
+            AnalysisId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+            Total = aggregated.Total,
+            Classification = aggregated.Classification,
+            VariableIncome = variableIncome,
+            FixedIncome = fixedIncome,
+            AlternativeAssets = alternativeAssets,
+            Cash = cash,
+            
+            // DEPRECATED: Backward compatibility - map VariableIncome to Stocks
+#pragma warning disable CS0618 // Type or member is obsolete
+            Stocks = variableIncome != null ? new StockPortfolio
+            {
+                TotalInvested = variableIncome.TotalInvested,
+                Currency = variableIncome.Currency,
+                Stocks = variableIncome.Assets?.Select(a => new StockHolding
+                {
+                    Ticker = a.Ticker ?? "",
+                    Quantity = (int)a.Quantity,
+                    AveragePrice = a.AveragePrice,
+                    CurrentValue = a.CurrentValue,
+                    Return = a.Return,
+                    ReturnPercentage = a.ReturnPercentage,
+                    Yield = a.Yield ?? "",
+                    Confidence = a.Confidence,
+                    ConfidenceReason = a.ConfidenceReason ?? ""
+                }).ToList() ?? new List<StockHolding>()
+            } : null,
+#pragma warning restore CS0618 // Type or member is obsolete
+            
+            Metadata = new AnalysisMetadata
+            {
+                AiProvider = "Microsoft.Extensions.AI",
+                AiModel = "gpt-4o",
+                UsedSpecializedChain = true,
+                FailedAnalyzers = failedAnalyzers,
+                ValidationWarnings = aggregated.ValidationWarnings,
+                HasInconsistencies = aggregated.HasInconsistencies
+            },
+            
+            Audit = new AuditInfo
+            {
+                ProcessedAt = DateTime.UtcNow
+            }
+        };
+        
+        return result;
     }
 
     /// <summary>
