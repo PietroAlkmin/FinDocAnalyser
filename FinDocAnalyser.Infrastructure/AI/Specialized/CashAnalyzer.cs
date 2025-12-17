@@ -97,6 +97,33 @@ Extract all cash positions with maximum precision!";
     
     protected override CashPortfolio? ParseResponse(string jsonResponse)
     {
-        return ParseJsonResponse(jsonResponse);
+        var result = ParseJsonResponse(jsonResponse);
+        
+        // Post-processing validation: Verify sum of positions matches total
+        if (result?.Positions != null && result.Positions.Any())
+        {
+            var calculatedSum = result.Positions.Sum(p => p.Balance);
+            var difference = Math.Abs(result.TotalContribution - calculatedSum);
+            var percentDiff = result.TotalContribution > 0 
+                ? (difference / result.TotalContribution * 100) 
+                : 0;
+            
+            if (difference > 0.01m) // Tolerance: 1 cent
+            {
+                _logger.LogWarning(
+                    "[Cash] ⚠️ Validation: Sum mismatch! Positions sum: {Calculated:N2}, Reported total: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
+                    calculatedSum, result.TotalContribution, difference, percentDiff);
+                
+                // Auto-correct: Use calculated sum as truth
+                _logger.LogInformation("[Cash] 🔧 Auto-correcting TotalContribution to {Corrected:N2}", calculatedSum);
+                result.TotalContribution = calculatedSum;
+            }
+            else
+            {
+                _logger.LogInformation("[Cash] ✅ Validation passed: Sum matches total ({Total:N2})", calculatedSum);
+            }
+        }
+        
+        return result;
     }
 }
