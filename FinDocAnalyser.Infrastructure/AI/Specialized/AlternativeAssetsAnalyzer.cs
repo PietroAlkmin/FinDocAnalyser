@@ -69,7 +69,6 @@ JSON Schema:
       ""name"": ""string"",
       ""type"": ""string (FII/REIT/Crypto/PrivateEquity/Commodity/Other)"",
       ""symbol"": ""string or null (ticker or code)"",
-      ""issuer"": ""string or null (fund manager or platform)"",
       ""description"": ""string or null"",
       ""quantity"": number or null,
       ""unitPrice"": number or null,

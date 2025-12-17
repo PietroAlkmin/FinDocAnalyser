@@ -214,7 +214,7 @@ The JSON must follow EXACTLY this structure:
         ""name"": string,
         ""type"": string (FLEXIBLE: ""REIT"", ""FII"", ""PrivateEquity"", ""HedgeFund"", ""Cryptocurrency"", ""Commodity"", ""StructuredProduct"", ""Art"", ""VentureCapital"", ""RealAssets"", ""Infrastructure"", or ANY other category),
         ""symbol"": string or null (ticker/identifier if available),
-        ""issuer"": string or null (manager/administrator),
+
         ""description"": string or null (additional description, strategy),
         ""quantity"": number or null (shares/units if applicable),
         ""unitPrice"": number or null (unit price if applicable),

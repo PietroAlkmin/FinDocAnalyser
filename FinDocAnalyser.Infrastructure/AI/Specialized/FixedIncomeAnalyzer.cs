@@ -36,11 +36,11 @@ You are a specialized AI trained to extract and interpret Fixed Income assets fr
    - Look for MULTIPLE sections with different geographic labels (US, Non-US, Global, International)
    - Each section may contain separate tables - EXTRACT FROM ALL OF THEM
    - Distinguish between:
-     * Detail tables (individual securities with names/issuers)
+     * Detail tables (individual securities with names)
      * Summary tables (aggregations by type, maturity, totals)
 
 3. ANALYZE and COMBINE data from ALL fixed income sections
-   - Prioritize tables with INDIVIDUAL security details (names, issuers, specific descriptions)
+   - Prioritize tables with INDIVIDUAL security details (names, specific descriptions)
    - Avoid tables that only show aggregated totals or type distributions
    - CRITICAL: If there are MULTIPLE SECTIONS (e.g., ""US Fixed Income"", ""Non-US Fixed Income"", ""Global Fixed Income""), YOU MUST EXTRACT FROM ALL OF THEM
    - CRITICAL: If table has MULTIPLE PERIOD COLUMNS (e.g., ""Last Period"" and ""This Period""), extract ONLY values from the MOST RECENT column (""This Period"" / ""Current Period"")
@@ -61,7 +61,7 @@ You are a specialized AI trained to extract and interpret Fixed Income assets fr
    Extract EVERYTHING you see in the table, even if it looks wrong or unusual.
 
 5. INTERPRET the data structure intelligently
-   - Identify columns: name, issuer, invested amount, current value, rate, maturity, etc.
+   - Identify columns: name, invested amount, current value, rate, maturity, etc.
    - Parse tables, lists, or narrative text
    - Distinguish between invested amount (cost basis) and current value when possible
    - Be flexible with different document formats
@@ -112,45 +112,6 @@ Extract all assets with maximum precision!";
     
     protected override FixedIncomePortfolio? ParseResponse(string jsonResponse)
     {
-        // AUDIT: Log the raw JSON response from AI
-        _logger.LogInformation("========== FIXED INCOME ANALYZER AUDIT ==========");
-        _logger.LogInformation("RAW AI RESPONSE (JSON):");
-        _logger.LogInformation("{JsonResponse}", jsonResponse);
-        _logger.LogInformation("=================================================");
-        
-        var result = ParseJsonResponse(jsonResponse);
-        
-        if (result != null)
-        {
-            // AUDIT: Log extracted assets details
-            _logger.LogInformation("========== FIXED INCOME ASSETS EXTRACTED ==========");
-            _logger.LogInformation("Total Assets Found: {Count}", result.Assets?.Count ?? 0);
-            _logger.LogInformation("Total Invested: {Total} {Currency}", result.TotalInvested, result.Currency);
-            _logger.LogInformation("Total Contribution: {Total}", result.TotalContribution);
-            
-            if (result.Assets != null && result.Assets.Any())
-            {
-                foreach (var asset in result.Assets)
-                {
-                    _logger.LogInformation("  - Asset: {Name} | Issuer: {Issuer} | Type: {Type}", 
-                        asset.Name ?? "N/A", 
-                        asset.Issuer ?? "N/A", 
-                        asset.Type ?? "N/A");
-                    _logger.LogInformation("    Invested: {Invested} | Current: {Current} | Return: {Return}%", 
-                        asset.InvestedAmount.ToString("N2"),
-                        asset.CurrentValue.ToString("N2"),
-                        asset.ReturnPercentage?.ToString("N2") ?? "N/A");
-                    _logger.LogInformation("    Rate: {Rate} | Maturity: {Maturity}", 
-                        asset.Rate ?? "N/A", 
-                        asset.MaturityDate?.ToString("yyyy-MM-dd") ?? "N/A");
-                    _logger.LogInformation("    Confidence: {Confidence:N2} - {Reason}", 
-                        asset.Confidence, 
-                        asset.ConfidenceReason ?? "N/A");
-                }
-            }
-            _logger.LogInformation("===================================================");
-        }
-        
-        return result;
+        return ParseJsonResponse(jsonResponse);
     }
 }

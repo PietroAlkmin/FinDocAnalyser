@@ -101,13 +101,15 @@ You are an expert AI specialized in extracting overall portfolio totals and asse
    - CRITICAL: If table has MULTIPLE PERIOD COLUMNS (e.g., ""Last Period"" and ""This Period""), extract ONLY values from the MOST RECENT column (""This Period"" / ""Current Period"")
 
 3. EXTRACT Asset Classification
-   - Find breakdown by major asset categories:
+   - Find breakdown by major asset categories (MUST include ALL 4 categories):
      * Variable Income / Renda Variável / Equities / Stocks
      * Fixed Income / Renda Fixa / Bonds / Fixed Rate
      * Alternative Assets / Alternativos / FIIs / REITs / Crypto
-     * Cash / Caixa / Liquidity / Disponível
+     * Cash / Caixa / Liquidity / Disponível / Cash Position / Liquidez
+   - CRITICAL: ALWAYS look for CASH/LIQUIDITY category - it is often listed separately as ""Cash"", ""Caixa"", ""Disponível"", ""Liquidity"", or similar
    - Extract invested amount and percentage for each category
    - Percentages should sum to approximately 100%
+   - If Cash is not explicitly shown in the summary table, check if there is a difference between the total and the sum of other categories - that difference is likely Cash
 
 4. INTERPRET intelligently
    - Look for summary tables at the beginning or end of the report
@@ -156,13 +158,15 @@ JSON Schema:
 ## Critical Rules
 
 1. CRITICAL: Extract ONLY from the most recent period if multiple columns present
-2. totalInvestedAmount should match the sum of all asset classes' invested amounts
-3. Percentages should sum to 100% (±1% tolerance)
-4. Use consistent currency across total and classification
-5. If no summary table found, return null for both total and classification
-6. Confidence scoring:
+2. CRITICAL: ALWAYS include ALL 4 asset classes (VariableIncome, FixedIncome, AlternativeAssets, Cash) in the classification
+3. CRITICAL: If Cash is not explicitly labeled in the table, calculate it as: Total - (VariableIncome + FixedIncome + AlternativeAssets)
+4. totalInvestedAmount should match the sum of all asset classes' invested amounts
+5. Percentages should sum to 100% (±1% tolerance)
+6. Use consistent currency across total and classification
+7. If no summary table found, return null for both total and classification
+8. Confidence scoring:
    - 0.95-1.0: Found in clear summary tables with percentages
-   - 0.85-0.94: Found in summary but had to calculate percentages
+   - 0.85-0.94: Found in summary but had to calculate percentages or Cash
    - 0.70-0.84: Inferred from multiple sections
    - Below 0.70: Return null (data too uncertain)
 

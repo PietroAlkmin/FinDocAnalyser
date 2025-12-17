@@ -49,12 +49,6 @@ public class AlternativeAsset
     public string? Symbol { get; set; }
 
     /// <summary>
-    /// Fund or asset issuer/manager/administrator
-    /// OPTIONAL - may not be available
-    /// </summary>
-    public string? Issuer { get; set; }
-
-    /// <summary>
     /// Additional description or strategy (for complex funds)
     /// OPTIONAL - free field for extra information
     /// </summary>
