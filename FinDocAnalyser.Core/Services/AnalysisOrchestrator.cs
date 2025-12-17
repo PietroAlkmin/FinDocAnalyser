@@ -146,22 +146,52 @@ public class AnalysisOrchestrator
     }
     
     /// <summary>
-    /// Process PDF using specialized AI chain (parallel execution)
+    /// Process PDF using specialized AI chain (ALL 5 analyzers independently in parallel)
+    /// Each AI can fail without affecting the others - no cascading failures
     /// </summary>
     private async Task<AnalysisResult> ProcessWithSpecializedChainAsync(string extractedText)
     {
-        // STEP 1: Execute 4 specialized analyzers in PARALLEL
-        var variableTask = _variableAnalyzer!.AnalyzeAsync(extractedText);
-        var fixedTask = _fixedAnalyzer!.AnalyzeAsync(extractedText);
-        var alternativeTask = _alternativeAnalyzer!.AnalyzeAsync(extractedText);
-        var cashTask = _cashAnalyzer!.AnalyzeAsync(extractedText);
+        // STEP 1: Execute ALL 5 analyzers in PARALLEL (100% independent)
+        // Each analyzer reads the PDF directly - no dependencies on other analyzers
+        var variableTask = Task.Run(async () =>
+        {
+            try { return await _variableAnalyzer!.AnalyzeAsync(extractedText); }
+            catch { return null; }
+        });
         
-        await Task.WhenAll(variableTask, fixedTask, alternativeTask, cashTask);
+        var fixedTask = Task.Run(async () =>
+        {
+            try { return await _fixedAnalyzer!.AnalyzeAsync(extractedText); }
+            catch { return null; }
+        });
         
+        var alternativeTask = Task.Run(async () =>
+        {
+            try { return await _alternativeAnalyzer!.AnalyzeAsync(extractedText); }
+            catch { return null; }
+        });
+        
+        var cashTask = Task.Run(async () =>
+        {
+            try { return await _cashAnalyzer!.AnalyzeAsync(extractedText); }
+            catch { return null; }
+        });
+        
+        var aggregatorTask = Task.Run(async () =>
+        {
+            try { return await _aggregatorAnalyzer!.AnalyzeAsync(extractedText); }
+            catch { return null; }
+        });
+        
+        // Wait for ALL 5 analyzers to complete (or fail)
+        await Task.WhenAll(variableTask, fixedTask, alternativeTask, cashTask, aggregatorTask);
+        
+        // Get results (can be null if analyzer failed)
         var variableIncome = await variableTask;
         var fixedIncome = await fixedTask;
         var alternativeAssets = await alternativeTask;
         var cash = await cashTask;
+        var aggregated = await aggregatorTask;
         
         // Track which analyzers succeeded/failed
         var failedAnalyzers = new List<string>();
@@ -169,35 +199,16 @@ public class AnalysisOrchestrator
         if (fixedIncome == null) failedAnalyzers.Add("FixedIncome");
         if (alternativeAssets == null) failedAnalyzers.Add("AlternativeAssets");
         if (cash == null) failedAnalyzers.Add("Cash");
+        if (aggregated == null) failedAnalyzers.Add("Aggregator (Total/Classification)");
         
-        // STEP 2: Aggregate with AI Aggregator
-        var aggregated = await _aggregatorAnalyzer!.AggregateAsync(
-            variableIncome,
-            fixedIncome,
-            alternativeAssets,
-            cash);
-        
-        // STEP 3: Update percentages in portfolios
-        if (variableIncome != null)
-            variableIncome.PercentageOfPortfolio = aggregated.UpdatedPercentages.VariableIncomePercentage;
-        
-        if (fixedIncome != null)
-            fixedIncome.PercentageOfPortfolio = aggregated.UpdatedPercentages.FixedIncomePercentage;
-        
-        if (alternativeAssets != null)
-            alternativeAssets.PercentageOfPortfolio = aggregated.UpdatedPercentages.AlternativeAssetsPercentage;
-        
-        if (cash != null)
-            cash.PercentageOfPortfolio = aggregated.UpdatedPercentages.CashPercentage;
-        
-        // STEP 4: Create final result
+        // STEP 2: Create final result - each piece can be null independently
         var result = new AnalysisResult
         {
             AnalysisId = Guid.NewGuid(),
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-            Total = aggregated.Total,
-            Classification = aggregated.Classification,
+            Total = aggregated?.Total,
+            Classification = aggregated?.Classification,
             VariableIncome = variableIncome,
             FixedIncome = fixedIncome,
             AlternativeAssets = alternativeAssets,
@@ -230,8 +241,8 @@ public class AnalysisOrchestrator
                 AiModel = "gpt-4o",
                 UsedSpecializedChain = true,
                 FailedAnalyzers = failedAnalyzers,
-                ValidationWarnings = aggregated.ValidationWarnings,
-                HasInconsistencies = aggregated.HasInconsistencies
+                ValidationWarnings = aggregated?.ValidationWarnings ?? new List<string>(),
+                HasInconsistencies = aggregated?.HasInconsistencies ?? false
             },
             
             Audit = new AuditInfo

@@ -38,7 +38,10 @@ public class InMemoryPdfCache : IPdfCache
             if (entry.ExpiresAt > DateTime.UtcNow)
             {
                 // Mark as coming from cache
-                entry.Result.Metadata.FromCache = true;
+                if (entry.Result?.Metadata != null)
+                {
+                    entry.Result.Metadata.FromCache = true;
+                }
                 return Task.FromResult<AnalysisResult?>(entry.Result);
             }
 

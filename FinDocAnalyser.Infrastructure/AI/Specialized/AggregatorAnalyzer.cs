@@ -23,58 +23,24 @@ public class AggregatorAnalyzer : IAggregatorAnalyzer
         _logger = logger;
     }
     
-    public async Task<AggregatedResult> AggregateAsync(
-        VariableIncomePortfolio? variableIncome,
-        FixedIncomePortfolio? fixedIncome,
-        AlternativeAssetsPortfolio? alternativeAssets,
-        CashPortfolio? cash)
+    public async Task<AggregatedResult?> AnalyzeAsync(string extractedText)
     {
         var stopwatch = Stopwatch.StartNew();
         
         try
         {
-            _logger.LogInformation("[Aggregator] Starting aggregation and validation...");
+            _logger.LogInformation("[Aggregator] Starting independent analysis...");
             
-            // Build input JSON for AI
-            var inputData = new
-            {
-                variableIncome = variableIncome != null ? new
-                {
-                    totalContribution = variableIncome.TotalContribution,
-                    currency = variableIncome.Currency,
-                    assetsCount = variableIncome.Assets.Count
-                } : null,
-                fixedIncome = fixedIncome != null ? new
-                {
-                    totalContribution = fixedIncome.TotalContribution,
-                    currency = fixedIncome.Currency,
-                    assetsCount = fixedIncome.Assets.Count
-                } : null,
-                alternativeAssets = alternativeAssets != null ? new
-                {
-                    totalContribution = alternativeAssets.TotalContribution,
-                    currency = alternativeAssets.Currency,
-                    assetsCount = alternativeAssets.Assets.Count
-                } : null,
-                cash = cash != null ? new
-                {
-                    totalContribution = cash.TotalContribution,
-                    currency = cash.Currency,
-                    positionsCount = cash.Positions.Count
-                } : null
-            };
-            
-            var inputJson = JsonSerializer.Serialize(inputData, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            // Truncate text if too long
+            var textToAnalyze = extractedText.Length > 120000
+                ? extractedText[..120000]
+                : extractedText;
             
             var prompt = CreateAggregatorPrompt();
-            var userPrompt = $@"Aggregate and validate these specialized portfolio results:
+            var userPrompt = $@"Analyze this financial report and extract ONLY Total Invested and Asset Classification:
 
-{inputJson}
+{textToAnalyze}
 
-Calculate totals, classifications, percentages, and detect any inconsistencies.
 Return a valid JSON following the defined schema.";
             
             var chatOptions = new ChatOptions
@@ -96,7 +62,7 @@ Return a valid JSON following the defined schema.";
             var tokensUsed = response.Usage?.TotalTokenCount ?? 0;
             
             _logger.LogInformation(
-                "[Aggregator] ✅ Aggregation completed in {Duration}ms - Tokens: {Tokens}",
+                "[Aggregator] ✅ Analysis completed in {Duration}ms - Tokens: {Tokens}",
                 stopwatch.ElapsedMilliseconds,
                 tokensUsed);
             
@@ -104,8 +70,7 @@ Return a valid JSON following the defined schema.";
             
             if (result == null)
             {
-                _logger.LogWarning("[Aggregator] ⚠️ Parsed result is null, using fallback");
-                result = CreateFallbackResult(variableIncome, fixedIncome, alternativeAssets, cash);
+                _logger.LogWarning("[Aggregator] ⚠️ Parsed result is null");
             }
             
             return result;
@@ -113,57 +78,41 @@ Return a valid JSON following the defined schema.";
         catch (Exception ex)
         {
             stopwatch.Stop();
-            _logger.LogError(ex, "[Aggregator] ❌ Aggregation failed: {Message}", ex.Message);
-            
-            // Fallback to programmatic aggregation
-            _logger.LogWarning("[Aggregator] Using fallback programmatic aggregation");
-            return CreateFallbackResult(variableIncome, fixedIncome, alternativeAssets, cash);
+            _logger.LogError(ex, "[Aggregator] ❌ Analysis failed: {Message}", ex.Message);
+            return null;
         }
     }
     
     private string CreateAggregatorPrompt()
     {
-        return @"# Portfolio Aggregator and Validator
+        return @"# Total Invested and Asset Classification Analyzer
 
-You are an expert AI specialized in consolidating and validating multi-portfolio financial analyses.
+You are an expert AI specialized in extracting overall portfolio totals and asset classification from financial institution reports.
 
-## Input Data
+## Your Mission
 
-You will receive results from 4 specialized analyzers:
-1. Variable Income - stocks, ETFs, and assets from 'Renda Variável' sections
-2. Fixed Income - bonds, CDB, and assets from 'Renda Fixa' sections
-3. Alternative Assets - FIIs, REITs, crypto from 'Alternativos' sections
-4. Cash - checking, savings, liquidity from 'Caixa' sections
+1. LOCATE summary sections in the document
+   - Look for: 'Total Invested', 'Total Assets', 'Portfolio Total', 'Grand Total', 'Total Patrimônio', 'Total de Investimentos'
+   - Find: 'Asset Allocation', 'Asset Classification', 'Classificação de Ativos', 'Distribution by Asset Type', 'Distribuição por Classe'
 
-## Your Responsibilities
+2. EXTRACT Total Invested
+   - Find the GRAND TOTAL of all investments across all asset categories
+   - Identify the currency (USD, BRL, EUR, etc.)
+   - CRITICAL: If table has MULTIPLE PERIOD COLUMNS (e.g., ""Last Period"" and ""This Period""), extract ONLY values from the MOST RECENT column (""This Period"" / ""Current Period"")
 
-### 1. Calculate Total Invested
-- Sum totalContribution from all 4 portfolios
-- Handle multiple currencies (convert or document if needed)
-- Return consolidated grand total
+3. EXTRACT Asset Classification
+   - Find breakdown by major asset categories:
+     * Variable Income / Renda Variável / Equities / Stocks
+     * Fixed Income / Renda Fixa / Bonds / Fixed Rate
+     * Alternative Assets / Alternativos / FIIs / REITs / Crypto
+     * Cash / Caixa / Liquidity / Disponível
+   - Extract invested amount and percentage for each category
+   - Percentages should sum to approximately 100%
 
-### 2. Generate Classification by Category
-- Calculate percentage of each portfolio relative to grand total
-- Validate that percentages sum to 100% (allow 0.5% tolerance for rounding)
-- Identify dominant asset class
-
-### 3. Cross-Validation
-- Document negative values in reasoning (they are valid - may represent losses)
-- Verify totalContribution matches sum of individual assets in each portfolio
-- Flag if percentages are mathematically inconsistent
-- Detect anomalies or outliers
-
-CRITICAL: Never discard or filter portfolios or assets based on unusual values (negative, zero, or extreme). Your job is to consolidate and validate the data as provided by the specialized analyzers, being a faithful mirror of what they extracted. Include everything in calculations and classification.
-
-### 4. Update Percentages
-- Calculate correct percentageOfPortfolio for each category
-- Ensure mathematical consistency across all values
-
-### 5. Currency Handling
-- If all portfolios use BRL, use BRL for total
-- If all portfolios use USD, use USD for total
-- If mixed currencies, use the most common one
-- Document currency decisions and conversions in reasoning
+4. INTERPRET intelligently
+   - Look for summary tables at the beginning or end of the report
+   - Distinguish between individual asset tables vs. summary tables
+   - Prioritize tables that show totals and percentages by category
 
 ## Output Schema
 
@@ -206,18 +155,18 @@ JSON Schema:
 
 ## Critical Rules
 
-1. If a portfolio is null (specialist failed), set its percentage to 0% and document in reasoning
-2. Percentages must sum to 100% with max 0.5% tolerance
-3. Never assume currency conversions - document if mixed currencies present
-4. Validate that each portfolio's totalContribution equals sum of its assets
-5. Flag any mathematical inconsistencies in validationWarnings
-6. Provide clear reasoning for all decisions and adjustments
-- Percentages MUST sum to 100% (±0.1% tolerance)
-- Confidence = 1.0 if data is consistent, < 1.0 if there are problems
-- Document ALL decisions in reasoning
-- Detect anomalies: negative values, sum mismatches, impossible percentages
+1. CRITICAL: Extract ONLY from the most recent period if multiple columns present
+2. totalInvestedAmount should match the sum of all asset classes' invested amounts
+3. Percentages should sum to 100% (±1% tolerance)
+4. Use consistent currency across total and classification
+5. If no summary table found, return null for both total and classification
+6. Confidence scoring:
+   - 0.95-1.0: Found in clear summary tables with percentages
+   - 0.85-0.94: Found in summary but had to calculate percentages
+   - 0.70-0.84: Inferred from multiple sections
+   - Below 0.70: Return null (data too uncertain)
 
-Be precise, consistent, and thorough in validations!";
+Be precise and extract only from summary sections - do NOT calculate by adding individual assets!";
     }
     
     private AggregatedResult? ParseResponse(string jsonResponse)
@@ -237,102 +186,5 @@ Be precise, consistent, and thorough in validations!";
             _logger.LogError(ex, "[Aggregator] JSON parse error: {Message}", ex.Message);
             return null;
         }
-    }
-    
-    /// <summary>
-    /// Fallback programmatic aggregation if AI fails
-    /// </summary>
-    private AggregatedResult CreateFallbackResult(
-        VariableIncomePortfolio? variableIncome,
-        FixedIncomePortfolio? fixedIncome,
-        AlternativeAssetsPortfolio? alternativeAssets,
-        CashPortfolio? cash)
-    {
-        var totalAmount = 0m;
-        var classes = new List<AssetClass>();
-        
-        if (variableIncome != null && variableIncome.TotalContribution > 0)
-        {
-            totalAmount += variableIncome.TotalContribution;
-            classes.Add(new AssetClass
-            {
-                AssetClassName = "Variable Income",
-                Invested = variableIncome.TotalContribution,
-                Percentage = 0,
-                Confidence = 1.0m,
-                ConfidenceReason = "Calculated from specialized AI"
-            });
-        }
-        
-        if (fixedIncome != null && fixedIncome.TotalContribution > 0)
-        {
-            totalAmount += fixedIncome.TotalContribution;
-            classes.Add(new AssetClass
-            {
-                AssetClassName = "Fixed Income",
-                Invested = fixedIncome.TotalContribution,
-                Percentage = 0,
-                Confidence = 1.0m,
-                ConfidenceReason = "Calculated from specialized AI"
-            });
-        }
-        
-        if (alternativeAssets != null && alternativeAssets.TotalContribution > 0)
-        {
-            totalAmount += alternativeAssets.TotalContribution;
-            classes.Add(new AssetClass
-            {
-                AssetClassName = "Alternative Assets",
-                Invested = alternativeAssets.TotalContribution,
-                Percentage = 0,
-                Confidence = 1.0m,
-                ConfidenceReason = "Calculated from specialized AI"
-            });
-        }
-        
-        if (cash != null && cash.TotalContribution > 0)
-        {
-            totalAmount += cash.TotalContribution;
-            classes.Add(new AssetClass
-            {
-                AssetClassName = "Cash",
-                Invested = cash.TotalContribution,
-                Percentage = 0,
-                Confidence = 1.0m,
-                ConfidenceReason = "Calculated from specialized AI"
-            });
-        }
-        
-        // Calculate percentages
-        foreach (var cls in classes)
-        {
-            cls.Percentage = totalAmount > 0 ? (cls.Invested / totalAmount) * 100 : 0;
-        }
-        
-        var result = new AggregatedResult
-        {
-            Total = new TotalInvested
-            {
-                TotalInvestedAmount = totalAmount,
-                Currency = "BRL" // Default
-            },
-            Classification = new AssetClassification
-            {
-                TotalInvested = totalAmount,
-                Currency = "BRL",
-                Classes = classes
-            },
-            UpdatedPercentages = new PortfolioPercentages
-            {
-                VariableIncomePercentage = classes.FirstOrDefault(c => c.AssetClassName == "Variable Income")?.Percentage,
-                FixedIncomePercentage = classes.FirstOrDefault(c => c.AssetClassName == "Fixed Income")?.Percentage,
-                AlternativeAssetsPercentage = classes.FirstOrDefault(c => c.AssetClassName == "Alternative Assets")?.Percentage,
-                CashPercentage = classes.FirstOrDefault(c => c.AssetClassName == "Cash")?.Percentage
-            },
-            ValidationWarnings = new List<string> { "Used fallback programmatic aggregation (AI failed)" },
-            HasInconsistencies = false
-        };
-        
-        return result;
     }
 }

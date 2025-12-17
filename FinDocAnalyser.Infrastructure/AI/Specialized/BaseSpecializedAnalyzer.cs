@@ -35,11 +35,18 @@ public abstract class BaseSpecializedAnalyzer<TResult> : ISpecializedAnalyzer<TR
         try
         {
             _logger.LogInformation("[{Category}] Starting specialized analysis...", Category);
+            _logger.LogInformation("[{Category}] Input text length: {Length} chars", Category, extractedText.Length);
             
             // Truncate text if too long
             var textToAnalyze = extractedText.Length > MaxTextLength
                 ? extractedText[..MaxTextLength]
                 : extractedText;
+            
+            if (extractedText.Length > MaxTextLength)
+            {
+                _logger.LogWarning("[{Category}] Text truncated from {Original} to {Truncated} chars", 
+                    Category, extractedText.Length, MaxTextLength);
+            }
             
             var prompt = CreateSpecializedPrompt();
             var userPrompt = $@"Analyze this financial report and extract ONLY {Category} data:
@@ -47,6 +54,11 @@ public abstract class BaseSpecializedAnalyzer<TResult> : ISpecializedAnalyzer<TR
 {textToAnalyze}
 
 Return a valid JSON following the defined schema.";
+            
+            // AUDIT: Log first 500 chars of text being analyzed
+            _logger.LogDebug("[{Category}] Text preview (first 500 chars): {Preview}...", 
+                Category, 
+                textToAnalyze.Length > 500 ? textToAnalyze[..500] : textToAnalyze);
             
             var chatOptions = new ChatOptions
             {
@@ -61,6 +73,7 @@ Return a valid JSON following the defined schema.";
                 new(ChatRole.User, userPrompt)
             };
             
+            _logger.LogInformation("[{Category}] Sending request to AI...", Category);
             var response = await _chatClient.CompleteAsync(messages, chatOptions);
             stopwatch.Stop();
             

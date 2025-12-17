@@ -9,23 +9,16 @@ using FinDocAnalyzer.Core.Models;
 namespace FinDocAnalyzer.Core.Interfaces;
 
 /// <summary>
-/// Aggregator AI that consolidates specialized portfolio results
+/// Aggregator AI that analyzes financial reports independently to extract Total and Classification
 /// </summary>
 public interface IAggregatorAnalyzer
 {
     /// <summary>
-    /// Aggregates specialized portfolios into total and classification
+    /// Analyzes extracted text independently to calculate total invested and asset classification
     /// </summary>
-    /// <param name="variableIncome">Variable income portfolio (can be null)</param>
-    /// <param name="fixedIncome">Fixed income portfolio (can be null)</param>
-    /// <param name="alternativeAssets">Alternative assets portfolio (can be null)</param>
-    /// <param name="cash">Cash portfolio (can be null)</param>
-    /// <returns>Aggregated result with total, classification, and validations</returns>
-    Task<AggregatedResult> AggregateAsync(
-        VariableIncomePortfolio? variableIncome,
-        FixedIncomePortfolio? fixedIncome,
-        AlternativeAssetsPortfolio? alternativeAssets,
-        CashPortfolio? cash);
+    /// <param name="extractedText">Text extracted from PDF</param>
+    /// <returns>Aggregated result with total and classification, or null if analysis failed</returns>
+    Task<AggregatedResult?> AnalyzeAsync(string extractedText);
 }
 
 /// <summary>
