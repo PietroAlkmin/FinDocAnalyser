@@ -46,19 +46,21 @@ You are a specialized AI trained to extract and interpret Fixed Income assets fr
    - CRITICAL: If table has MULTIPLE PERIOD COLUMNS (e.g., ""Last Period"" and ""This Period""), extract ONLY values from the MOST RECENT column (""This Period"" / ""Current Period"")
    - Explain your choice in the confidenceReason field
 
-4. EXTRACT ALL individual securities from the chosen source
-   - Include EVERY asset listed (regardless of status, value, or condition)
+4. EXTRACT ONLY Fixed Income securities (BONDS, NOTES, DEBENTURES, etc.)
+   - Include ALL Fixed Income assets listed (regardless of status, value, or condition)
    - Skip total/subtotal rows within the table
    - Asset type, value amount, or status should NOT filter out positions
 
-   CRITICAL: Your job is to be a faithful mirror of individual securities in the report. Include ALL assets with ANY status:
+   CRITICAL: Your job is to extract FIXED INCOME INSTRUMENTS ONLY:
+   - ✅ Include: Bonds, Notes, Debentures, Treasury Securities, Fixed Rate Securities, Corporate Bonds, Government Bonds
+   - ✅ Include: Any instrument with a maturity date, coupon rate, or labeled as ""Fixed Income""
    - ✅ Include: ""Falido"" (defaulted), ""Vencido"" (matured), ""Liquidado"" (liquidated), ""Suspenso"" (suspended)
    - ✅ Include: Negative values, zero values, expired securities
-   - ✅ Include: Assets with no maturity date, no rate, or missing data
-   - ❌ NEVER filter based on quality, status, or value
-   - ❌ NEVER exclude assets because they seem problematic
+   - ❌ EXCLUDE: Pure cash positions, bank deposits, checking/savings accounts, sweep accounts, or simple liquidity holdings
+   - ❌ EXCLUDE: Assets that are clearly labeled as ""Cash"" category (not ""Fixed Income"")
    
-   Extract EVERYTHING you see in the table, even if it looks wrong or unusual.
+   KEY DISTINCTION: Fixed Income = Debt instruments with interest/yield. Cash = Liquid deposits without maturity.
+   If an asset is in a ""Fixed Income"" section but looks like cash, analyze its nature: Does it have a coupon/maturity? Include it. Is it just a deposit? Exclude it.
 
 5. INTERPRET the data structure intelligently
    - Identify columns: name, invested amount, current value, rate, maturity, etc.
@@ -82,7 +84,7 @@ JSON Schema:
       ""investedAmount"": number or null,
       ""currentValue"": number,
       ""return"": number or null,
-      ""returnPercentage"": number or null,
+      ""returnPercentage"": number or null (calculated as: (return / investedAmount) * 100, e.g., 5.5 for 5.5%),
       ""rate"": ""string or null (e.g., 'CDI+2.5%' or '12.5% a.a.')"",
       ""yield"": ""string or null"",
       ""maturityDate"": ""string (YYYY-MM-DD) or null"",
@@ -114,11 +116,15 @@ Extract all assets with maximum precision!";
     {
         var result = ParseJsonResponse(jsonResponse);
         
-        // Post-processing validation: Verify sum of assets matches total
+        // Post-processing validation: Calculate and verify totals
         if (result?.Assets != null && result.Assets.Any())
         {
-            var calculatedSum = result.Assets.Sum(a => a.CurrentValue);
-            var difference = Math.Abs(result.TotalContribution - calculatedSum);
+            // Calculate both TotalInvested and TotalContribution from assets
+            var calculatedInvested = result.Assets.Sum(a => a.InvestedAmount);
+            var calculatedCurrent = result.Assets.Sum(a => a.CurrentValue);
+            
+            // Validate TotalContribution (CurrentValue sum)
+            var difference = Math.Abs(result.TotalContribution - calculatedCurrent);
             var percentDiff = result.TotalContribution > 0 
                 ? (difference / result.TotalContribution * 100) 
                 : 0;
@@ -126,17 +132,20 @@ Extract all assets with maximum precision!";
             if (difference > 0.01m) // Tolerance: 1 cent
             {
                 _logger.LogWarning(
-                    "[FixedIncome] ⚠️ Validation: Sum mismatch! Assets sum: {Calculated:N2}, Reported total: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
-                    calculatedSum, result.TotalContribution, difference, percentDiff);
+                    "[FixedIncome] ⚠️ Validation: CurrentValue sum mismatch! Assets sum: {Calculated:N2}, Reported total: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
+                    calculatedCurrent, result.TotalContribution, difference, percentDiff);
                 
-                // Auto-correct: Use calculated sum as truth
-                _logger.LogInformation("[FixedIncome] 🔧 Auto-correcting TotalContribution to {Corrected:N2}", calculatedSum);
-                result.TotalContribution = calculatedSum;
+                _logger.LogInformation("[FixedIncome] 🔧 Auto-correcting TotalContribution to {Corrected:N2}", calculatedCurrent);
+                result.TotalContribution = calculatedCurrent;
             }
             else
             {
-                _logger.LogInformation("[FixedIncome] ✅ Validation passed: Sum matches total ({Total:N2})", calculatedSum);
+                _logger.LogInformation("[FixedIncome] ✅ Validation passed: CurrentValue sum matches total ({Total:N2})", calculatedCurrent);
             }
+            
+            // Always set TotalInvested from calculated sum
+            _logger.LogInformation("[FixedIncome] 📊 Setting TotalInvested to {Invested:N2} (sum of InvestedAmount)", calculatedInvested);
+            result.TotalInvested = calculatedInvested;
         }
         
         return result;

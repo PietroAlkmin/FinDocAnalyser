@@ -73,7 +73,7 @@ JSON Schema:
       ""averagePrice"": number,
       ""currentValue"": number,
       ""return"": number or null,
-      ""returnPercentage"": number or null,
+      ""returnPercentage"": number or null (calculated as: (return / investedAmount) * 100, e.g., 15.8 for 15.8%),
       ""yield"": ""string or null"",
       ""confidence"": number (0.0 to 1.0),
       ""confidenceReason"": ""string""

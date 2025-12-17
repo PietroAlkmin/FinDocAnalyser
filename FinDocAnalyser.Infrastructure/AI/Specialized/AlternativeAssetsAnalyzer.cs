@@ -75,7 +75,7 @@ JSON Schema:
       ""investedAmount"": number or null,
       ""currentValue"": number,
       ""return"": number or null,
-      ""returnPercentage"": number or null,
+      ""returnPercentage"": number or null (calculated as: (return / investedAmount) * 100, e.g., 8.2 for 8.2%),
       ""yield"": ""string or null"",
       ""managementFee"": ""string or null"",
       ""lockupPeriod"": ""string or null"",
