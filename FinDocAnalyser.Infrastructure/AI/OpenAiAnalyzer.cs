@@ -199,8 +199,6 @@ The JSON must follow EXACTLY this structure:
         ""returnPercentage"": number or null,
         ""rate"": string or null,
         ""yield"": string or null,
-        ""maturityDate"": ""YYYY-MM-DD"" or null,
-        ""applicationDate"": ""YYYY-MM-DD"" or null,
         ""confidence"": number,
         ""confidenceReason"": string
       }
@@ -226,7 +224,6 @@ The JSON must follow EXACTLY this structure:
         ""managementFee"": string or null (management fee),
         ""lockupPeriod"": string or null (lock-up/grace period),
         ""inceptionDate"": ""YYYY-MM-DD"" or null,
-        ""maturityDate"": ""YYYY-MM-DD"" or null,
         ""additionalData"": object or null (key-value with specific extra data),
         ""confidence"": number,
         ""confidenceReason"": string

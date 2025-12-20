@@ -18,7 +18,9 @@ public class StockHolding
     public string Ticker { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal AveragePrice { get; set; }
+    public decimal? UnitPrice { get; set; }  // Preço unitário original (InvestedAmount / Quantity)
     public decimal CurrentValue { get; set; }
+    public decimal? CurrentUnitPrice { get; set; }  // Preço unitário atual (CurrentValue / Quantity)
     public decimal? Return { get; set; }  // Nullable - pode ser null
     public decimal? ReturnPercentage { get; set; }  // Nullable
     public string Yield { get; set; } = string.Empty;  // Dividend yield, ex: "4.66%"

@@ -80,7 +80,6 @@ JSON Schema:
       ""managementFee"": ""string or null"",
       ""lockupPeriod"": ""string or null"",
       ""inceptionDate"": ""string (YYYY-MM-DD) or null"",
-      ""maturityDate"": ""string (YYYY-MM-DD) or null"",
       ""additionalData"": {{""key"": ""value as string""}} or null,
       ""confidence"": number (0.0 to 1.0),
       ""confidenceReason"": ""string""

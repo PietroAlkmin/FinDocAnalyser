@@ -111,11 +111,6 @@ public class AlternativeAsset
     public DateTime? InceptionDate { get; set; }
 
     /// <summary>
-    /// Maturity/exit/liquidation date (if applicable)
-    /// </summary>
-    public DateTime? MaturityDate { get; set; }
-
-    /// <summary>
     /// Additional data in key-value format for maximum flexibility
     /// Allows capturing specific fields for each asset type
     /// E.g.: {"Vintage": "2023", "Geography": "Global", "Strategy": "Long/Short Equity"}

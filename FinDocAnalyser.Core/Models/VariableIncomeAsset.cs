@@ -57,9 +57,19 @@ public class VariableIncomeAsset
     public decimal AveragePrice { get; set; }
 
     /// <summary>
+    /// Unit price at acquisition (InvestedAmount / Quantity)
+    /// </summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>
     /// Total current position value
     /// </summary>
     public decimal CurrentValue { get; set; }
+
+    /// <summary>
+    /// Current unit price (CurrentValue / Quantity)
+    /// </summary>
+    public decimal? CurrentUnitPrice { get; set; }
 
     /// <summary>
     /// Absolute return (profit/loss)
