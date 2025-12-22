@@ -80,6 +80,7 @@ public class AnalysisMetadata
     public List<string> FailedAnalyzers { get; set; } = new();
     public List<string> ValidationWarnings { get; set; } = new();
     public bool HasInconsistencies { get; set; } = false;
+    public CrossValidationResult? CrossValidationResult { get; set; }
 }
 
 /// <summary>
@@ -94,4 +95,53 @@ public class AiReasoning
     public List<string> Assumptions { get; set; } = new();
     public string DataQualityAssessment { get; set; } = string.Empty;
     public Dictionary<string, string> SpecificDecisions { get; set; } = new();
+}
+
+/// <summary>
+/// Cross-validation result between Aggregator and Specialized Analyzers
+/// </summary>
+public class CrossValidationResult
+{
+    /// <summary>
+    /// When the validation was performed
+    /// </summary>
+    public DateTime PerformedAt { get; set; }
+    
+    /// <summary>
+    /// Total from Aggregator (extracted from summary tables)
+    /// </summary>
+    public decimal AggregatorTotal { get; set; }
+    
+    /// <summary>
+    /// Sum of all specialized analyzers' contributions
+    /// </summary>
+    public decimal SpecializedAnalyzersTotal { get; set; }
+    
+    /// <summary>
+    /// Absolute difference between the two totals
+    /// </summary>
+    public decimal AbsoluteDifference { get; set; }
+    
+    /// <summary>
+    /// Percentage difference
+    /// </summary>
+    public decimal PercentageDifference { get; set; }
+    
+    /// <summary>
+    /// Individual analyzer totals for detailed breakdown
+    /// </summary>
+    public decimal VariableIncomeTotal { get; set; }
+    public decimal FixedIncomeTotal { get; set; }
+    public decimal AlternativeAssetsTotal { get; set; }
+    public decimal CashTotal { get; set; }
+    
+    /// <summary>
+    /// Validation warnings
+    /// </summary>
+    public List<string> Warnings { get; set; } = new();
+    
+    /// <summary>
+    /// Whether inconsistencies were detected beyond tolerance
+    /// </summary>
+    public bool HasInconsistencies { get; set; }
 }

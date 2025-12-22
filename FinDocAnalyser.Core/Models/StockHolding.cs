@@ -17,7 +17,6 @@ public class StockHolding
 {
     public string Ticker { get; set; } = string.Empty;
     public int Quantity { get; set; }
-    public decimal AveragePrice { get; set; }
     public decimal? UnitPrice { get; set; }  // Preço unitário original (InvestedAmount / Quantity)
     public decimal CurrentValue { get; set; }
     public decimal? CurrentUnitPrice { get; set; }  // Preço unitário atual (CurrentValue / Quantity)

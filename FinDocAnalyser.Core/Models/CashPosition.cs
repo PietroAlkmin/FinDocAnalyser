@@ -24,6 +24,11 @@ public class CashPortfolio
     /// Percentage of total portfolio
     /// </summary>
     public decimal? PercentageOfPortfolio { get; set; }
+    
+    /// <summary>
+    /// AI analyzer's thought process and reasoning for extraction decisions
+    /// </summary>
+    public string? ThoughtProcess { get; set; }
 }
 
 /// <summary>

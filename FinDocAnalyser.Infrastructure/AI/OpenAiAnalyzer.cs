@@ -1,6 +1,7 @@
 ﻿using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Models;
 using Microsoft.Extensions.AI;
+using AI = Microsoft.Extensions.AI;
 using System.Text.Json;
 using System.Diagnostics;
 
@@ -52,7 +53,7 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
             };
 
             // Cria as mensagens
-            var messages = new List<ChatMessage>
+            var messages = new List<Microsoft.Extensions.AI.ChatMessage>
             {
                 new(ChatRole.System, systemPrompt),
                 new(ChatRole.User, userPrompt)
@@ -96,8 +97,9 @@ Retorne um JSON válido seguindo exatamente o schema definido.";
                     {
                         Ticker = a.Ticker ?? "",
                         Quantity = (int)a.Quantity, // Conversão de decimal para int
-                        AveragePrice = a.AveragePrice,
+                        UnitPrice = a.UnitPrice,
                         CurrentValue = a.CurrentValue,
+                        CurrentUnitPrice = a.CurrentUnitPrice,
                         Return = a.Return,
                         ReturnPercentage = a.ReturnPercentage,
                         Yield = a.Yield ?? "",

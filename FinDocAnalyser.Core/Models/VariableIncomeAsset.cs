@@ -24,6 +24,11 @@ public class VariableIncomePortfolio
     /// Percentage of total portfolio
     /// </summary>
     public decimal? PercentageOfPortfolio { get; set; }
+    
+    /// <summary>
+    /// AI analyzer's thought process and reasoning for extraction decisions
+    /// </summary>
+    public string? ThoughtProcess { get; set; }
 }
 
 /// <summary>
@@ -50,11 +55,6 @@ public class VariableIncomeAsset
     /// Quantity of shares/units (accepts fractional)
     /// </summary>
     public decimal Quantity { get; set; }
-
-    /// <summary>
-    /// Average purchase price
-    /// </summary>
-    public decimal AveragePrice { get; set; }
 
     /// <summary>
     /// Unit price at acquisition (InvestedAmount / Quantity)

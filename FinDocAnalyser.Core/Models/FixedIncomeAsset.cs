@@ -21,14 +21,25 @@ public class FixedIncomePortfolio
     /// Percentage of total portfolio
     /// </summary>
     public decimal? PercentageOfPortfolio { get; set; }
+    
+    /// <summary>
+    /// AI analyzer's thought process and reasoning for extraction decisions
+    /// </summary>
+    public string? ThoughtProcess { get; set; }
 }
 
 public class FixedIncomeAsset
 {
     public string Name { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;  // LCI, CDB, Debênture, etc.
+    public string Issuer { get; set; } = string.Empty;  // Emissor (banco ou instituição)
+    public decimal? Quantity { get; set; }  // Quantidade de títulos/unidades
     public decimal InvestedAmount { get; set; }
+    public decimal? UnitPrice { get; set; }  // Preço unitário original (InvestedAmount / Quantity)
     public decimal CurrentValue { get; set; }
+    public decimal? CurrentUnitPrice { get; set; }  // Preço unitário atual (CurrentValue / Quantity)
+    public decimal? AccruedInterest { get; set; }  // Juros acumulados
+    public decimal? TotalValueWithAccruedInterest { get; set; }  // Valor total com juros acumulados
     public decimal? Return { get; set; }
     public decimal? ReturnPercentage { get; set; }
     public string Rate { get; set; } = string.Empty;  // "96% CDI", "IPCA +3.6%"

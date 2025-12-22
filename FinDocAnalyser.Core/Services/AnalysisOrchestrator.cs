@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using Microsoft.Extensions.AI;
+using AI = Microsoft.Extensions.AI;
 
 using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Models;
@@ -16,6 +18,7 @@ public class AnalysisOrchestrator
     private readonly IAiAnalyzer _aiAnalyzer; // Legacy analyzer (kept for backward compatibility)
     private readonly IResultStore _resultStore;
     private readonly IPdfCache? _pdfCache;
+    private readonly IChatClient? _chatClient; // For interactive chat
     
     // Specialized analyzers (new chain)
     private readonly ISpecializedAnalyzer<VariableIncomePortfolio>? _variableAnalyzer;
@@ -35,7 +38,8 @@ public class AnalysisOrchestrator
         ISpecializedAnalyzer<FixedIncomePortfolio>? fixedAnalyzer = null,
         ISpecializedAnalyzer<AlternativeAssetsPortfolio>? alternativeAnalyzer = null,
         ISpecializedAnalyzer<CashPortfolio>? cashAnalyzer = null,
-        IAggregatorAnalyzer? aggregatorAnalyzer = null)
+        IAggregatorAnalyzer? aggregatorAnalyzer = null,
+        IChatClient? chatClient = null)
     {
         _pdfExtractor = pdfExtractor;
         _aiAnalyzer = aiAnalyzer;
@@ -46,6 +50,7 @@ public class AnalysisOrchestrator
         _alternativeAnalyzer = alternativeAnalyzer;
         _cashAnalyzer = cashAnalyzer;
         _aggregatorAnalyzer = aggregatorAnalyzer;
+        _chatClient = chatClient;
         
         // Use specialized chain if all analyzers are available
         _useSpecializedChain = variableAnalyzer != null 
@@ -201,7 +206,10 @@ public class AnalysisOrchestrator
         if (cash == null) failedAnalyzers.Add("Cash");
         if (aggregated == null) failedAnalyzers.Add("Aggregator (Total/Classification)");
         
-        // STEP 2: Create final result - each piece can be null independently
+        // STEP 2: Cross-validate totals between Aggregator and Specialized Analyzers
+        var crossValidation = ValidateCrossTotals(aggregated, variableIncome, fixedIncome, alternativeAssets, cash);
+        
+        // STEP 3: Create final result - each piece can be null independently
         var result = new AnalysisResult
         {
             AnalysisId = Guid.NewGuid(),
@@ -224,8 +232,9 @@ public class AnalysisOrchestrator
                 {
                     Ticker = a.Ticker ?? "",
                     Quantity = (int)a.Quantity,
-                    AveragePrice = a.AveragePrice,
+                    UnitPrice = a.UnitPrice,
                     CurrentValue = a.CurrentValue,
+                    CurrentUnitPrice = a.CurrentUnitPrice,
                     Return = a.Return,
                     ReturnPercentage = a.ReturnPercentage,
                     Yield = a.Yield ?? "",
@@ -241,8 +250,9 @@ public class AnalysisOrchestrator
                 AiModel = "gpt-4o",
                 UsedSpecializedChain = true,
                 FailedAnalyzers = failedAnalyzers,
-                ValidationWarnings = aggregated?.ValidationWarnings ?? new List<string>(),
-                HasInconsistencies = aggregated?.HasInconsistencies ?? false
+                ValidationWarnings = MergeWarnings(aggregated?.ValidationWarnings, crossValidation.Warnings),
+                HasInconsistencies = (aggregated?.HasInconsistencies ?? false) || crossValidation.HasInconsistencies,
+                CrossValidationResult = crossValidation
             },
             
             Audit = new AuditInfo
@@ -252,6 +262,83 @@ public class AnalysisOrchestrator
         };
         
         return result;
+    }
+    
+    /// <summary>
+    /// Validates totals between Aggregator (summary tables) and Specialized Analyzers (detailed assets)
+    /// </summary>
+    private CrossValidationResult ValidateCrossTotals(
+        AggregatedResult? aggregated,
+        VariableIncomePortfolio? variableIncome,
+        FixedIncomePortfolio? fixedIncome,
+        AlternativeAssetsPortfolio? alternativeAssets,
+        CashPortfolio? cash)
+    {
+        var validation = new CrossValidationResult
+        {
+            PerformedAt = DateTime.UtcNow,
+            Warnings = new List<string>(),
+            HasInconsistencies = false
+        };
+        
+        // Calculate sum from specialized analyzers
+        var specializedSum = 
+            (variableIncome?.TotalContribution ?? 0) +
+            (fixedIncome?.TotalContribution ?? 0) +
+            (alternativeAssets?.TotalContribution ?? 0) +
+            (cash?.TotalContribution ?? 0);
+        
+        validation.SpecializedAnalyzersTotal = specializedSum;
+        validation.AggregatorTotal = aggregated?.Total?.TotalInvestedAmount ?? 0;
+        
+        // Calculate difference
+        var difference = Math.Abs(validation.AggregatorTotal - specializedSum);
+        var percentDiff = validation.AggregatorTotal > 0
+            ? (difference / validation.AggregatorTotal * 100)
+            : 0;
+        
+        validation.AbsoluteDifference = difference;
+        validation.PercentageDifference = percentDiff;
+        
+        // Tolerance: 1% or $100 (whichever is larger)
+        var tolerance = Math.Max(validation.AggregatorTotal * 0.01m, 100m);
+        
+        if (difference > tolerance)
+        {
+            validation.HasInconsistencies = true;
+            validation.Warnings.Add(
+                $"⚠️ CROSS-VALIDATION MISMATCH: Aggregator total ({validation.AggregatorTotal:N2}) vs Specialized sum ({specializedSum:N2}). " +
+                $"Difference: {difference:N2} ({percentDiff:N2}%)");
+        }
+        else if (difference > 0.01m)
+        {
+            validation.Warnings.Add(
+                $"ℹ️ Minor difference detected: {difference:N2} ({percentDiff:N2}%). Within acceptable tolerance.");
+        }
+        
+        // Individual breakdowns
+        validation.VariableIncomeTotal = variableIncome?.TotalContribution ?? 0;
+        validation.FixedIncomeTotal = fixedIncome?.TotalContribution ?? 0;
+        validation.AlternativeAssetsTotal = alternativeAssets?.TotalContribution ?? 0;
+        validation.CashTotal = cash?.TotalContribution ?? 0;
+        
+        return validation;
+    }
+    
+    /// <summary>
+    /// Merges warning lists from different sources
+    /// </summary>
+    private List<string> MergeWarnings(List<string>? aggregatorWarnings, List<string>? crossWarnings)
+    {
+        var merged = new List<string>();
+        
+        if (aggregatorWarnings != null)
+            merged.AddRange(aggregatorWarnings);
+        
+        if (crossWarnings != null)
+            merged.AddRange(crossWarnings);
+        
+        return merged;
     }
 
     /// <summary>
@@ -334,5 +421,169 @@ public class AnalysisOrchestrator
     {
         var result = await _resultStore.GetAsync(analysisId);
         return result?.ExtractedText;
+    }
+
+    /// <summary>
+    /// Ask a question about an analysis - Interactive chat with AI
+    /// </summary>
+    /// </summary>
+    public async Task<ChatResponse> AskQuestionAsync(Guid analysisId, ChatRequest request)
+    {
+        if (_chatClient == null)
+        {
+            throw new InvalidOperationException("Chat client is not configured. Please enable chat functionality.");
+        }
+
+        // Get the complete analysis
+        var analysis = await _resultStore.GetAsync(analysisId);
+        if (analysis == null)
+        {
+            throw new InvalidOperationException($"Analysis {analysisId} not found or expired.");
+        }
+
+        // Build context from the analysis
+        var contextBuilder = new StringBuilder();
+        contextBuilder.AppendLine("# Financial Analysis Context");
+        contextBuilder.AppendLine($"File: {analysis.FileName}");
+        contextBuilder.AppendLine($"Analysis Date: {analysis.CreatedAt:yyyy-MM-dd HH:mm}");
+        contextBuilder.AppendLine();
+
+        // Total invested
+        if (analysis.Total != null)
+        {
+            contextBuilder.AppendLine($"## Total Portfolio");
+            contextBuilder.AppendLine($"Total Invested: {analysis.Total.TotalInvestedAmount:N2} {analysis.Total.Currency}");
+            contextBuilder.AppendLine();
+        }
+
+        // Classification
+        if (analysis.Classification?.Classes != null && analysis.Classification.Classes.Any())
+        {
+            contextBuilder.AppendLine($"## Asset Classification");
+            foreach (var assetClass in analysis.Classification.Classes)
+            {
+                contextBuilder.AppendLine($"- {assetClass.AssetClassName}: {assetClass.Invested:N2} ({assetClass.Percentage:N2}%)");
+            }
+            contextBuilder.AppendLine();
+        }
+
+        // Variable Income
+        if (analysis.VariableIncome?.Assets != null && analysis.VariableIncome.Assets.Any())
+        {
+            contextBuilder.AppendLine($"## Variable Income (Stocks/ETFs)");
+            contextBuilder.AppendLine($"Total: {analysis.VariableIncome.TotalContribution:N2}");
+            contextBuilder.AppendLine($"Assets: {analysis.VariableIncome.Assets.Count}");
+            foreach (var asset in analysis.VariableIncome.Assets.Take(10))
+            {
+                contextBuilder.AppendLine($"- {asset.Ticker} ({asset.Type}): Qty {asset.Quantity}, Value {asset.CurrentValue:N2}, Return {asset.ReturnPercentage:N2}%");
+            }
+            if (analysis.VariableIncome.Assets.Count > 10)
+                contextBuilder.AppendLine($"... and {analysis.VariableIncome.Assets.Count - 10} more");
+            contextBuilder.AppendLine();
+        }
+
+        // Fixed Income
+        if (analysis.FixedIncome?.Assets != null && analysis.FixedIncome.Assets.Any())
+        {
+            contextBuilder.AppendLine($"## Fixed Income");
+            contextBuilder.AppendLine($"Total: {analysis.FixedIncome.TotalContribution:N2}");
+            contextBuilder.AppendLine($"Assets: {analysis.FixedIncome.Assets.Count}");
+            foreach (var asset in analysis.FixedIncome.Assets.Take(10))
+            {
+                contextBuilder.AppendLine($"- {asset.Name} ({asset.Type}): Value {asset.CurrentValue:N2}, Rate {asset.Rate}");
+            }
+            if (analysis.FixedIncome.Assets.Count > 10)
+                contextBuilder.AppendLine($"... and {analysis.FixedIncome.Assets.Count - 10} more");
+            contextBuilder.AppendLine();
+        }
+
+        // Alternative Assets
+        if (analysis.AlternativeAssets?.Assets != null && analysis.AlternativeAssets.Assets.Any())
+        {
+            contextBuilder.AppendLine($"## Alternative Assets");
+            contextBuilder.AppendLine($"Total: {analysis.AlternativeAssets.TotalContribution:N2}");
+            contextBuilder.AppendLine($"Assets: {analysis.AlternativeAssets.Assets.Count}");
+            foreach (var asset in analysis.AlternativeAssets.Assets.Take(10))
+            {
+                contextBuilder.AppendLine($"- {asset.Name} ({asset.Type}): Value {asset.CurrentValue:N2}");
+            }
+            if (analysis.AlternativeAssets.Assets.Count > 10)
+                contextBuilder.AppendLine($"... and {analysis.AlternativeAssets.Assets.Count - 10} more");
+            contextBuilder.AppendLine();
+        }
+
+        // Cash
+        if (analysis.Cash?.Positions != null && analysis.Cash.Positions.Any())
+        {
+            contextBuilder.AppendLine($"## Cash Positions");
+            contextBuilder.AppendLine($"Total: {analysis.Cash.TotalContribution:N2}");
+            foreach (var pos in analysis.Cash.Positions)
+            {
+                contextBuilder.AppendLine($"- {pos.Name} ({pos.Institution}): {pos.Balance:N2}");
+            }
+            contextBuilder.AppendLine();
+        }
+
+        // Build conversation history
+        var messages = new List<Models.ChatMessage>();
+        
+        // System message with context
+        messages.Add(new Models.ChatMessage
+        {
+            Role = "system",
+            Content = $@"You are a financial analysis assistant. Answer questions about the user's portfolio analysis.
+
+{contextBuilder}
+
+Guidelines:
+- Be precise with numbers (use exact values from the data)
+- Explain financial concepts clearly
+- If the data doesn't contain the information, say so
+- Use Brazilian Portuguese (pt-BR) for currency and formatting
+- Be conversational and helpful"
+        });
+
+        // Add conversation history if provided
+        if (request.ConversationHistory != null && request.ConversationHistory.Any())
+        {
+            messages.AddRange(request.ConversationHistory);
+        }
+
+        // Add current question
+        messages.Add(new Models.ChatMessage
+        {
+            Role = "user",
+            Content = request.Question,
+            Timestamp = DateTime.UtcNow
+        });
+
+        // Call AI
+        var chatMessages = messages.Select(m => new AI.ChatMessage(
+            m.Role == "system" ? ChatRole.System : 
+            m.Role == "user" ? ChatRole.User : 
+            ChatRole.Assistant,
+            m.Content
+        )).ToList();
+
+        var response = await _chatClient.CompleteAsync(chatMessages);
+        var answer = response.Message.Text ?? "Sorry, I couldn't generate a response.";
+
+        // Build response
+        var updatedHistory = messages.Where(m => m.Role != "system").ToList();
+        updatedHistory.Add(new Models.ChatMessage
+        {
+            Role = "assistant",
+            Content = answer,
+            Timestamp = DateTime.UtcNow
+        });
+
+        return new ChatResponse
+        {
+            Answer = answer,
+            Sources = new List<string> { $"Analysis {analysisId}" },
+            Confidence = 0.85m,
+            ConversationHistory = updatedHistory,
+            Timestamp = DateTime.UtcNow
+        };
     }
 }

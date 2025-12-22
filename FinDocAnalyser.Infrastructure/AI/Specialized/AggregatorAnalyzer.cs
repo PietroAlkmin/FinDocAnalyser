@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
+using AI = Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using FinDocAnalyzer.Core.Interfaces;
 using FinDocAnalyzer.Core.Models;
@@ -50,7 +51,7 @@ Return a valid JSON following the defined schema.";
                 MaxOutputTokens = 2048
             };
             
-            var messages = new List<ChatMessage>
+            var messages = new List<Microsoft.Extensions.AI.ChatMessage>
             {
                 new(ChatRole.System, prompt),
                 new(ChatRole.User, userPrompt)
@@ -183,7 +184,50 @@ Be precise and extract only from summary sections - do NOT calculate by adding i
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
             
-            return JsonSerializer.Deserialize<AggregatedResult>(jsonResponse, options);
+            var result = JsonSerializer.Deserialize<AggregatedResult>(jsonResponse, options);
+            
+            // Post-processing validation: Verify sums
+            if (result?.Classification?.Classes != null && result.Classification.Classes.Any())
+            {
+                var calculatedSum = result.Classification.Classes.Sum(c => c.Invested);
+                var reportedTotal = result.Classification.TotalInvested;
+                var difference = Math.Abs(reportedTotal - calculatedSum);
+                var percentDiff = reportedTotal > 0 
+                    ? (difference / reportedTotal * 100) 
+                    : 0;
+                
+                if (difference > 0.01m) // Tolerance: 1 cent
+                {
+                    _logger.LogWarning(
+                        "[Aggregator] ⚠️ Validation: Classes sum mismatch! Calculated: {Calculated:N2}, Reported: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
+                        calculatedSum, reportedTotal, difference, percentDiff);
+                    
+                    // Auto-correct: Use calculated sum
+                    _logger.LogInformation("[Aggregator] 🔧 Auto-correcting TotalInvested to {Corrected:N2}", calculatedSum);
+                    result.Classification.TotalInvested = calculatedSum;
+                }
+                else
+                {
+                    _logger.LogInformation("[Aggregator] ✅ Validation passed: Classes sum matches total ({Total:N2})", calculatedSum);
+                }
+                
+                // Validate percentages sum to 100%
+                var percentageSum = result.Classification.Classes.Sum(c => c.Percentage);
+                var percentageDiff = Math.Abs(100m - percentageSum);
+                
+                if (percentageDiff > 1m) // Tolerance: 1%
+                {
+                    _logger.LogWarning(
+                        "[Aggregator] ⚠️ Validation: Percentages sum to {Sum:N2}% (expected 100%)",
+                        percentageSum);
+                }
+                else
+                {
+                    _logger.LogInformation("[Aggregator] ✅ Percentages validation passed: {Sum:N2}%", percentageSum);
+                }
+            }
+            
+            return result;
         }
         catch (JsonException ex)
         {

@@ -43,18 +43,47 @@ You are a specialized AI trained to extract and interpret Alternative Assets fro
    - CRITICAL: If table has MULTIPLE PERIOD COLUMNS (e.g., ""Last Period"" and ""This Period""), extract ONLY values from the MOST RECENT column (""This Period"" / ""Current Period"")
    - Explain your choice in the confidenceReason field
 
-4. EXTRACT ALL individual assets from the chosen source
-   - Include EVERY asset listed (regardless of status, value, or condition)
-   - Skip total/subtotal rows within the table
-   - Asset type, value amount, or status should NOT filter out positions
-
-   CRITICAL: Your job is to be a faithful mirror of individual assets in the report. Include all assets, even with problems or unusual status. Never filter based on quality.
+4. COUNT and EXTRACT ALL individual assets from the chosen source
+   - COUNT the rows in the table: If section shows 8 alternative assets, return 8 assets
+   - Include EVERY row that represents an individual asset (skip only total/subtotal rows)
+   - Include assets even if CurrentValue = 0 or CurrentValue = null
+   - Include assets even if InvestedAmount = 0 or missing
+   - Include assets even if Return, Yield, or Quantity are missing
+   - Your response MUST have the same number of assets as the source table
+   
+   CRITICAL RULE: Number of assets in your response = Number of rows in source table (excluding totals)
+   REMEMBER: You are a faithful mirror - if the table has 8 rows, your assets array must have 8 items.
 
 5. INTERPRET the data structure intelligently
    - Identify columns: name/ticker, quantity, price, value, return, yield, etc.
    - Parse tables, lists, or narrative text
    - Be flexible with diverse asset types and their specific fields
    - Calculate totals if not explicitly stated
+
+## EDGE CASES & SPECIAL SITUATIONS
+
+Handle these specific scenarios that may seem unusual but are CRITICAL:
+
+1. **Assets with CurrentValue = 0.00**:
+   - ⚠️ ALWAYS include assets where CurrentValue = 0.00 (zero)
+   - These represent closed funds, liquidated positions, or failed investments
+   - They are still part of the portfolio and MUST be reported
+   - Do NOT apply mental filters like relevance or active assets only
+
+2. **Missing or Incomplete Data**:
+   - Include assets even if some fields are null or empty
+   - Use null for missing numeric values, empty string for missing text
+   - Example: Asset with only Name and CurrentValue → INCLUDE IT
+
+3. **Negative Values**:
+   - Include assets with negative CurrentValue (losses, impairments)
+   - Do not filter based on profitability or positive values
+
+4. **Illiquid or Restricted Assets**:
+   - Include funds with redemption restrictions
+   - Include assets marked as illiquid or restricted
+
+CRITICAL: These are NOT exceptions to skip - they are MANDATORY inclusions. Count them as regular rows.
 
 ## Output Schema
 
@@ -67,26 +96,22 @@ JSON Schema:
   ""assets"": [
     {
       ""name"": ""string"",
-      ""type"": ""string (FII/REIT/Crypto/PrivateEquity/Commodity/Other)"",
-      ""symbol"": ""string or null (ticker or code)"",
-      ""description"": ""string or null"",
+      ""type"": ""string (FII/REIT/Crypto/PrivateEquity/HedgeFund/Other)"",
       ""quantity"": number or null,
-      ""unitPrice"": number or null,
       ""investedAmount"": number or null,
+      ""unitPrice"": number or null (preço unitário original = investedAmount / quantity),
       ""currentValue"": number,
+      ""currentUnitPrice"": number or null (preço unitário atual = currentValue / quantity),
       ""return"": number or null,
       ""returnPercentage"": number or null (calculated as: (return / investedAmount) * 100, e.g., 8.2 for 8.2%),
       ""yield"": ""string or null"",
-      ""managementFee"": ""string or null"",
-      ""lockupPeriod"": ""string or null"",
-      ""inceptionDate"": ""string (YYYY-MM-DD) or null"",
-      ""additionalData"": {{""key"": ""value as string""}} or null,
       ""confidence"": number (0.0 to 1.0),
       ""confidenceReason"": ""string""
     }
   ],
   ""totalContribution"": number,
-  ""percentageOfPortfolio"": null
+  ""percentageOfPortfolio"": null,
+  ""thoughtProcess"": ""string - EXPLAIN YOUR COMPLETE REASONING: Which section did you find? Why did you choose this specific table? How did you classify asset types (FII/REIT/Crypto/etc)? What challenges did you face? What assumptions did you make?""
 }
 
 ## Critical Rules
@@ -120,16 +145,16 @@ Extract all assets with maximum precision!";
             if (difference > 0.01m) // Tolerance: 1 cent
             {
                 _logger.LogWarning(
-                    "[AlternativeAssets] ⚠️ Validation: Sum mismatch! Assets sum: {Calculated:N2}, Reported total: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
+                    "[AlternativeAssets]  Validation: Sum mismatch! Assets sum: {Calculated:N2}, Reported total: {Reported:N2}, Diff: {Diff:N2} ({Percent:N2}%)",
                     calculatedSum, result.TotalContribution, difference, percentDiff);
                 
                 // Auto-correct: Use calculated sum as truth
-                _logger.LogInformation("[AlternativeAssets] 🔧 Auto-correcting TotalContribution to {Corrected:N2}", calculatedSum);
+                _logger.LogInformation("[AlternativeAssets]  Auto-correcting TotalContribution to {Corrected:N2}", calculatedSum);
                 result.TotalContribution = calculatedSum;
             }
             else
             {
-                _logger.LogInformation("[AlternativeAssets] ✅ Validation passed: Sum matches total ({Total:N2})", calculatedSum);
+                _logger.LogInformation("[AlternativeAssets]  Validation passed: Sum matches total ({Total:N2})", calculatedSum);
             }
         }
         

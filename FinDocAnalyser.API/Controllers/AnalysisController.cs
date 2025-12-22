@@ -308,6 +308,159 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// Get audit information for Cash analyzer (AI thought process)
+    /// </summary>
+    [HttpGet("{id}/audit/cash")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> GetCashAudit(Guid id)
+    {
+        var result = await _orchestrator.GetCashAsync(id);
+        
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
+            });
+        }
+
+        return Ok(new
+        {
+            analyzer = "Cash",
+            thoughtProcess = result.ThoughtProcess,
+            positions = result.Positions?.Select(p => new
+            {
+                p.Name,
+                p.Institution,
+                p.Balance,
+                p.Currency,
+                p.Confidence,
+                p.ConfidenceReason
+            }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// Get audit information for Variable Income analyzer (AI thought process)
+    /// </summary>
+    [HttpGet("{id}/audit/variable-income")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> GetVariableIncomeAudit(Guid id)
+    {
+        var result = await _orchestrator.GetVariableIncomeAsync(id);
+        
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
+            });
+        }
+
+        return Ok(new
+        {
+            analyzer = "VariableIncome",
+            thoughtProcess = result.ThoughtProcess,
+            assets = result.Assets?.Select(a => new
+            {
+                a.Ticker,
+                a.Name,
+                a.Type,
+                a.Quantity,
+                a.CurrentValue,
+                a.CurrentUnitPrice,
+                a.Return,
+                a.ReturnPercentage,
+                a.Confidence,
+                a.ConfidenceReason
+            }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// Get audit information for Fixed Income analyzer (AI thought process)
+    /// </summary>
+    [HttpGet("{id}/audit/fixed-income")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> GetFixedIncomeAudit(Guid id)
+    {
+        var result = await _orchestrator.GetFixedIncomeAsync(id);
+        
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
+            });
+        }
+
+        return Ok(new
+        {
+            analyzer = "FixedIncome",
+            thoughtProcess = result.ThoughtProcess,
+            assets = result.Assets?.Select(a => new
+            {
+                a.Name,
+                a.Type,
+                a.Issuer,
+                a.Quantity,
+                a.InvestedAmount,
+                a.CurrentValue,
+                a.Yield,
+                a.Rate,
+                a.AccruedInterest,
+                a.Confidence,
+                a.ConfidenceReason
+            }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// Get audit information for Alternative Assets analyzer (AI thought process)
+    /// </summary>
+    [HttpGet("{id}/audit/alternative-assets")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> GetAlternativeAssetsAudit(Guid id)
+    {
+        var result = await _orchestrator.GetAlternativeAssetsAsync(id);
+        
+        if (result == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Analysis not found",
+                Details = "The analysis does not exist or has expired (results available for 30 minutes)"
+            });
+        }
+
+        return Ok(new
+        {
+            analyzer = "AlternativeAssets",
+            thoughtProcess = result.ThoughtProcess,
+            assets = result.Assets?.Select(a => new
+            {
+                a.Name,
+                a.Type,
+                a.Quantity,
+                a.CurrentValue,
+                a.InvestedAmount,
+                a.Return,
+                a.ReturnPercentage,
+                a.Yield,
+                a.Confidence,
+                a.ConfidenceReason
+            }).ToList()
+        });
+    }
+
+    /// <summary>
     /// Get extracted text from PDF
     /// </summary>
     [HttpGet("{id}/extracted-text")]
@@ -327,6 +480,63 @@ public class AnalysisController : ControllerBase
         }
 
         return Ok(new { extractedText = result });
+    }
+
+    /// <summary>
+    /// Ask a question about an analysis - Interactive chat with AI
+    /// </summary>
+    /// <param name="id">Analysis ID</param>
+    /// <param name="request">Question and optional conversation history</param>
+    /// <returns>AI's answer with context and updated conversation</returns>
+    [HttpPost("{id}/chat")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ChatResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ChatResponse>> AskQuestion(Guid id, [FromBody] ChatRequest request)
+    {
+        try
+        {
+            // Validation: Question required
+            if (string.IsNullOrWhiteSpace(request.Question))
+            {
+                return BadRequest(new ErrorResponse
+                {
+                    Error = "Question is required",
+                    Details = "Please provide a question in the 'question' field"
+                });
+            }
+
+            // Ask the AI
+            var response = await _orchestrator.AskQuestionAsync(id, request);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found") || ex.Message.Contains("expired"))
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "Analysis not found",
+                Details = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Chat client"))
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Error = "Chat functionality not available",
+                Details = "The chat service is not configured. Please contact the administrator."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Chat] Error processing question for analysis {AnalysisId}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Error = "Failed to process question",
+                Details = $"An error occurred: {ex.Message}"
+            });
+        }
     }
 
     /// <summary>
