@@ -483,11 +483,11 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Ask a question about an analysis - Interactive chat with AI
+    /// Ask a question about an analysis - Simple chat with AI
     /// </summary>
     /// <param name="id">Analysis ID</param>
-    /// <param name="request">Question and optional conversation history</param>
-    /// <returns>AI's answer with context and updated conversation</returns>
+    /// <param name="request">Question about the analysis</param>
+    /// <returns>AI's answer</returns>
     [HttpPost("{id}/chat")]
     [Consumes("application/json")]
     [ProducesResponseType(typeof(ChatResponse), StatusCodes.Status200OK)]
@@ -498,13 +498,13 @@ public class AnalysisController : ControllerBase
     {
         try
         {
-            // Validation: Question required
-            if (string.IsNullOrWhiteSpace(request.Question))
+            // Validation: Message required
+            if (string.IsNullOrWhiteSpace(request.Message))
             {
                 return BadRequest(new ErrorResponse
                 {
-                    Error = "Question is required",
-                    Details = "Please provide a question in the 'question' field"
+                    Error = "Message is required",
+                    Details = "Please provide a message in the 'message' field"
                 });
             }
 

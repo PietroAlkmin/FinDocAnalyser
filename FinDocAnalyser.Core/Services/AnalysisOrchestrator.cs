@@ -424,8 +424,7 @@ public class AnalysisOrchestrator
     }
 
     /// <summary>
-    /// Ask a question about an analysis - Interactive chat with AI
-    /// </summary>
+    /// Ask a question about an analysis - Simple chat with AI
     /// </summary>
     public async Task<ChatResponse> AskQuestionAsync(Guid analysisId, ChatRequest request)
     {
@@ -524,14 +523,8 @@ public class AnalysisOrchestrator
             contextBuilder.AppendLine();
         }
 
-        // Build conversation history
-        var messages = new List<Models.ChatMessage>();
-        
-        // System message with context
-        messages.Add(new Models.ChatMessage
-        {
-            Role = "system",
-            Content = $@"You are a financial analysis assistant. Answer questions about the user's portfolio analysis.
+        // Create simple messages
+        var systemPrompt = $@"You are a financial analysis assistant. Answer questions about the user's portfolio analysis in Brazilian Portuguese.
 
 {contextBuilder}
 
@@ -540,50 +533,21 @@ Guidelines:
 - Explain financial concepts clearly
 - If the data doesn't contain the information, say so
 - Use Brazilian Portuguese (pt-BR) for currency and formatting
-- Be conversational and helpful"
-        });
+- Be conversational and helpful";
 
-        // Add conversation history if provided
-        if (request.ConversationHistory != null && request.ConversationHistory.Any())
+        var messages = new List<AI.ChatMessage>
         {
-            messages.AddRange(request.ConversationHistory);
-        }
-
-        // Add current question
-        messages.Add(new Models.ChatMessage
-        {
-            Role = "user",
-            Content = request.Question,
-            Timestamp = DateTime.UtcNow
-        });
+            new(ChatRole.System, systemPrompt),
+            new(ChatRole.User, request.Message)
+        };
 
         // Call AI
-        var chatMessages = messages.Select(m => new AI.ChatMessage(
-            m.Role == "system" ? ChatRole.System : 
-            m.Role == "user" ? ChatRole.User : 
-            ChatRole.Assistant,
-            m.Content
-        )).ToList();
-
-        var response = await _chatClient.CompleteAsync(chatMessages);
-        var answer = response.Message.Text ?? "Sorry, I couldn't generate a response.";
-
-        // Build response
-        var updatedHistory = messages.Where(m => m.Role != "system").ToList();
-        updatedHistory.Add(new Models.ChatMessage
-        {
-            Role = "assistant",
-            Content = answer,
-            Timestamp = DateTime.UtcNow
-        });
+        var response = await _chatClient.CompleteAsync(messages);
+        var answer = response.Message.Text ?? "Desculpe, não consegui gerar uma resposta.";
 
         return new ChatResponse
         {
-            Answer = answer,
-            Sources = new List<string> { $"Analysis {analysisId}" },
-            Confidence = 0.85m,
-            ConversationHistory = updatedHistory,
-            Timestamp = DateTime.UtcNow
+            Answer = answer
         };
     }
 }
