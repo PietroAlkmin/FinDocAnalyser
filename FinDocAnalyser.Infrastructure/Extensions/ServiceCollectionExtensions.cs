@@ -4,6 +4,7 @@ using FinDocAnalyzer.Core.Services;
 using FinDocAnalyzer.Infrastructure.AI;
 using FinDocAnalyzer.Infrastructure.AI.Specialized;
 using FinDocAnalyzer.Infrastructure.Caching;
+using FinDocAnalyzer.Infrastructure.Export;
 using FinDocAnalyzer.Infrastructure.Pdf;
 using FinDocAnalyzer.Infrastructure.Storage;
 using Microsoft.Extensions.AI;
@@ -41,6 +42,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISpecializedAnalyzer<AlternativeAssetsPortfolio>, AlternativeAssetsAnalyzer>();
         services.AddScoped<ISpecializedAnalyzer<CashPortfolio>, CashAnalyzer>();
         services.AddScoped<IAggregatorAnalyzer, AggregatorAnalyzer>();
+        services.AddScoped<ISpecializedAnalyzer<MovementsAnalysis>, MovementAnalyzer>();
+        
+        // Export services
+        services.AddScoped<IExcelExporter, ExcelExporter>();
 
         // PDF cache
         if (options.EnablePdfCache)

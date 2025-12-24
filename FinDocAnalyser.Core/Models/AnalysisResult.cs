@@ -35,6 +35,7 @@ public class AnalysisResult
     public FixedIncomePortfolio? FixedIncome { get; set; } = new();
     public AlternativeAssetsPortfolio? AlternativeAssets { get; set; } = new();
     public CashPortfolio? Cash { get; set; } = new();
+    public MovementsAnalysis? Movements { get; set; } = new();
     
     // DEPRECATED: Keep for backward compatibility
     [Obsolete("Use VariableIncome instead")]

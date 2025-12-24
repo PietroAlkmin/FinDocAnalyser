@@ -26,6 +26,7 @@ public class AnalysisOrchestrator
     private readonly ISpecializedAnalyzer<AlternativeAssetsPortfolio>? _alternativeAnalyzer;
     private readonly ISpecializedAnalyzer<CashPortfolio>? _cashAnalyzer;
     private readonly IAggregatorAnalyzer? _aggregatorAnalyzer;
+    private readonly ISpecializedAnalyzer<MovementsAnalysis>? _movementAnalyzer;
     
     private readonly bool _useSpecializedChain;
 
@@ -39,6 +40,7 @@ public class AnalysisOrchestrator
         ISpecializedAnalyzer<AlternativeAssetsPortfolio>? alternativeAnalyzer = null,
         ISpecializedAnalyzer<CashPortfolio>? cashAnalyzer = null,
         IAggregatorAnalyzer? aggregatorAnalyzer = null,
+        ISpecializedAnalyzer<MovementsAnalysis>? movementAnalyzer = null,
         IChatClient? chatClient = null)
     {
         _pdfExtractor = pdfExtractor;
@@ -50,6 +52,7 @@ public class AnalysisOrchestrator
         _alternativeAnalyzer = alternativeAnalyzer;
         _cashAnalyzer = cashAnalyzer;
         _aggregatorAnalyzer = aggregatorAnalyzer;
+        _movementAnalyzer = movementAnalyzer;
         _chatClient = chatClient;
         
         // Use specialized chain if all analyzers are available
@@ -156,7 +159,7 @@ public class AnalysisOrchestrator
     /// </summary>
     private async Task<AnalysisResult> ProcessWithSpecializedChainAsync(string extractedText)
     {
-        // STEP 1: Execute ALL 5 analyzers in PARALLEL (100% independent)
+        // STEP 1: Execute ALL 6 analyzers in PARALLEL (100% independent)
         // Each analyzer reads the PDF directly - no dependencies on other analyzers
         var variableTask = Task.Run(async () =>
         {
@@ -188,8 +191,19 @@ public class AnalysisOrchestrator
             catch { return null; }
         });
         
-        // Wait for ALL 5 analyzers to complete (or fail)
-        await Task.WhenAll(variableTask, fixedTask, alternativeTask, cashTask, aggregatorTask);
+        var movementTask = Task.Run(async () =>
+        {
+            try 
+            { 
+                return _movementAnalyzer != null 
+                    ? await _movementAnalyzer.AnalyzeAsync(extractedText) 
+                    : null; 
+            }
+            catch { return null; }
+        });
+        
+        // Wait for ALL 6 analyzers to complete (or fail)
+        await Task.WhenAll(variableTask, fixedTask, alternativeTask, cashTask, aggregatorTask, movementTask);
         
         // Get results (can be null if analyzer failed)
         var variableIncome = await variableTask;
@@ -197,6 +211,7 @@ public class AnalysisOrchestrator
         var alternativeAssets = await alternativeTask;
         var cash = await cashTask;
         var aggregated = await aggregatorTask;
+        var movements = await movementTask;
         
         // Track which analyzers succeeded/failed
         var failedAnalyzers = new List<string>();
@@ -205,6 +220,7 @@ public class AnalysisOrchestrator
         if (alternativeAssets == null) failedAnalyzers.Add("AlternativeAssets");
         if (cash == null) failedAnalyzers.Add("Cash");
         if (aggregated == null) failedAnalyzers.Add("Aggregator (Total/Classification)");
+        if (movements == null) failedAnalyzers.Add("Movements");
         
         // STEP 2: Cross-validate totals between Aggregator and Specialized Analyzers
         var crossValidation = ValidateCrossTotals(aggregated, variableIncome, fixedIncome, alternativeAssets, cash);
@@ -221,6 +237,7 @@ public class AnalysisOrchestrator
             FixedIncome = fixedIncome,
             AlternativeAssets = alternativeAssets,
             Cash = cash,
+            Movements = movements,
             
             // DEPRECATED: Backward compatibility - map VariableIncome to Stocks
 #pragma warning disable CS0618 // Type or member is obsolete

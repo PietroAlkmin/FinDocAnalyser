@@ -1,4 +1,5 @@
-﻿using FinDocAnalyzer.Core.Models;
+﻿using FinDocAnalyzer.Core.Interfaces;
+using FinDocAnalyzer.Core.Models;
 using FinDocAnalyzer.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,14 +10,17 @@ namespace FinDocAnalyzer.API.Controllers;
 public class AnalysisController : ControllerBase
 {
     private readonly AnalysisOrchestrator _orchestrator;
+    private readonly IExcelExporter _excelExporter;
     private readonly ILogger<AnalysisController> _logger;
     private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
 
     public AnalysisController(
         AnalysisOrchestrator orchestrator,
+        IExcelExporter excelExporter,
         ILogger<AnalysisController> logger)
     {
         _orchestrator = orchestrator;
+        _excelExporter = excelExporter;
         _logger = logger;
     }
 
@@ -535,6 +539,62 @@ public class AnalysisController : ControllerBase
             {
                 Error = "Failed to process question",
                 Details = $"An error occurred: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Export analysis result as Excel file with multiple sheets
+    /// </summary>
+    /// <param name="id">Analysis result ID</param>
+    /// <returns>Excel file (.xlsx) with comprehensive financial analysis across multiple tabs</returns>
+    [HttpGet("{id}/export")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> ExportAnalysis(Guid id)
+    {
+        try
+        {
+            _logger.LogInformation("Exporting analysis {AnalysisId} to Excel", id);
+
+            // Get analysis result from orchestrator
+            var analysis = await _orchestrator.GetAnalysisAsync(id);
+            
+            if (analysis == null)
+            {
+                _logger.LogWarning("Analysis {AnalysisId} not found for export", id);
+                return NotFound(new ErrorResponse
+                {
+                    Error = "Analysis not found",
+                    Details = $"No analysis found with ID: {id}"
+                });
+            }
+
+            // Generate Excel file
+            var excelBytes = await _excelExporter.ExportToExcelAsync(analysis);
+            
+            // Create filename with sanitized original name and timestamp
+            var sanitizedFileName = string.Join("_", 
+                analysis.FileName.Split(Path.GetInvalidFileNameChars()));
+            var fileName = $"Analysis_{sanitizedFileName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            
+            _logger.LogInformation(
+                "Successfully exported analysis {AnalysisId} to Excel file {FileName} ({Size} bytes)", 
+                id, fileName, excelBytes.Length);
+
+            return File(
+                excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting analysis {AnalysisId} to Excel", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Error = "Export failed",
+                Details = ex.Message
             });
         }
     }
